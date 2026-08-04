@@ -1,0 +1,31 @@
+{
+  "name": "simple-customer-service-aibot",
+  "version": "1.0.0",
+  "description": "WhatsApp AI customer service bot with Gemini",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "start:pairing": "node scripts/start-pairing.js",
+    "dev": "node --watch src/index.js",
+    "stop": "node scripts/stop-bot.js",
+    "reset-session": "node scripts/reset-session.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "whatsapp",
+    "chatbot",
+    "gemini",
+    "customer-service",
+    "ai-bot"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "dotenv": "^16.4.7",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.27.0"
+  }
+}

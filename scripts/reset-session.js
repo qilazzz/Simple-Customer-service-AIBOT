@@ -1,0 +1,1 @@
+require('./session-utils').resetSession();
