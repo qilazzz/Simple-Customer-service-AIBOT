@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login — US Pizza Customer Service</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/auth.css" />
+    <link rel="icon" href="/assets/images/us-pizza-logo.png" type="image/png" />
+  </head>
+  <body>
+    <main class="page auth-page">
+      <div class="container auth-container">
+        <nav class="site-nav" aria-label="Main navigation">
+          <a href="/">Home</a>
+          <a href="/chat.html">AI Chatbot</a>
+          <a href="/register.html">Register</a>
+        </nav>
+
+        <div class="auth-card card">
+          <div class="auth-brand">
+            <img src="/assets/images/us-pizza-logo.png" alt="US Pizza" width="72" height="72" />
+          </div>
+          <span class="badge">Customer Account</span>
+          <h1>Welcome back</h1>
+          <p class="auth-sub">Sign in to save your details and get faster support.</p>
+
+          <div id="login-error" class="error-banner hidden" role="alert"></div>
+
+          <form id="login-form" class="auth-form" novalidate>
+            <div>
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" />
+            </div>
+            <div>
+              <label for="password">Password</label>
+              <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Your password" />
+            </div>
+            <button type="submit" class="btn-primary auth-submit">Log in</button>
+          </form>
+
+          <p class="auth-switch">
+            Don't have an account? <a href="/register.html">Create one</a>
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <script src="/js/customer-auth.js"></script>
+    <script src="/js/login.js"></script>
+  </body>
+</html>

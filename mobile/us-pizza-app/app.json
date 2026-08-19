@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "US Pizza",
+    "slug": "us-pizza-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#c8102e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.uspizza.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#c8102e"
+      },
+      "package": "com.uspizza.app",
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "plugins": [
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ]
+  }
+}

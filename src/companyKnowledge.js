@@ -4,10 +4,10 @@
  */
 module.exports = {
   companyName: 'US Pizza',
-  whatsappNumber: '01X-XXX-XXXX', // Your WhatsApp business line (display only — actual bot = phone that scans QR)
+  phoneNumber: '013 667 9056',
   contactPerson: {
-    name: 'Support Team',
-    phone: '01X-XXX-XXXX', // Human contact for out-of-scope / complex issues
+    name: 'Qila',
+    phone: '013 242 9974',
   },
 
   about:
@@ -18,35 +18,71 @@ module.exports = {
     'Takeaway — order and pick up at the counter',
     'Delivery — pizza delivered to your doorstep (within delivery area)',
     'Catering — pizza catering for events and parties (advance booking required)',
-    'Online ordering — order via WhatsApp or phone',
-  ],
-
-  outlets: [
-    'No. 1, Jalan 1/1, Taman Bukit Permai, 43000 Kajang, Selangor',
-    'No. 2, Jalan 2/2, Taman Bukit Permai, 43000 Kajang, Selangor',
-    'No. 3, Jalan 3/3, Taman Bukit Permai, 43000 Kajang, Selangor',
-    'No. 4, Jalan 4/4, Taman Bukit Permai, 43000 Kajang, Selangor',
-    'No. 5, Jalan 5/5, Taman Bukit Permai, 43000 Kajang, Selangor',
-    'No. 6, Jalan 6/6, Taman Bukit Permai, 43000 Kajang, Selangor',
-    'No. 7, Jalan 7/7, Taman Bukit Permai, 43000 Kajang, Selangor',
-    'No. 8, Jalan 8/8, Taman Bukit Permai, 43000 Kajang, Selangor',
-    'No. 9, Jalan 9/9, Taman Bukit Permai, 43000 Kajang, Selangor',
-    'No. 10, Jalan 10/10, Taman Bukit Permai, 43000 Kajang, Selangor',
+    'Online ordering — call us or use the mobile app',
   ],
 
   menu: {
-    pizzas: [
-      'Classic Pepperoni',
-      'Hawaiian',
-      'Super Supreme',
-      'BBQ Chicken',
-      'Vegetarian Delight',
-      'Cheese Lovers',
-      'Meat Lovers',
-      'Custom pizza (choose your own toppings)',
+    fullMenuUrl: '/menu.html',
+    pizzas: {
+      traditional: [
+        'Classic Pepperoni',
+        'Hawaiian',
+        'Cheese Lovers',
+        'Vegetarian Delight',
+      ],
+      signature: [
+        'Super Supreme',
+        'BBQ Chicken',
+        'Seafood Delight',
+        'Spicy Chicken Ranch',
+      ],
+      chefsBest: [
+        'Meat Lovers',
+        'US Pizza Special',
+        'Truffle Mushroom',
+        'Custom pizza (choose your own toppings)',
+      ],
+    },
+    sides: [
+      'Garlic bread',
+      'Cheesy garlic bread',
+      'Chicken wings (6 pcs)',
+      'Mozzarella sticks',
+      'French fries',
     ],
-    sides: ['Garlic bread', 'Chicken wings', 'French fries', 'Mozzarella sticks'],
-    drinks: ['Soft drinks', 'Mineral water', 'Fresh juice (selected outlets)'],
+    pasta: ['Chicken Alfredo pasta', 'Spaghetti Bolognese', 'Creamy mushroom pasta'],
+    drinks: ['Soft drinks', 'Mineral water', 'Fresh juice (selected outlets)', 'Iced lemon tea'],
+    sizes: [
+      { name: 'Personal', size: '6"', serves: '1 person' },
+      { name: 'Regular', size: '9"', serves: '1–2 people' },
+      { name: 'Large', size: '13"', serves: '3–4 people' },
+    ],
+    crusts: [
+      'Classic Hand Tossed',
+      'Thin & Crispy',
+      'Garlic Parmesan',
+      'Cheese Stuffed Crust (selected outlets)',
+    ],
+    halal: {
+      certified: true,
+      summary:
+        'US Pizza Malaysia outlets serve Halal-certified food prepared in accordance with Halal guidelines.',
+      certificateNote: 'Halal certification is displayed at each outlet. Ask staff if you need details.',
+    },
+    dietary: {
+      vegetarian: [
+        'Vegetarian Delight pizza',
+        'Custom veggie pizzas with your choice of toppings',
+        'Garlic bread and selected sides',
+      ],
+      notes: [
+        'We can customize orders to reduce or omit certain ingredients on request.',
+        'Please inform staff of any allergies when ordering.',
+      ],
+    },
+    // Legacy flat lists used elsewhere
+    sidesLegacy: ['Garlic bread', 'Chicken wings', 'French fries', 'Mozzarella sticks'],
+    drinksLegacy: ['Soft drinks', 'Mineral water', 'Fresh juice (selected outlets)'],
   },
 
   operatingHours: {
@@ -78,7 +114,7 @@ module.exports = {
     },
     {
       q: 'How do I place an order?',
-      a: 'Message us on WhatsApp or call our order line. Check companyKnowledge.js for the number.',
+      a: 'Call us at 013 667 9056 or use Customer Support in the mobile app.',
     },
   ],
 };

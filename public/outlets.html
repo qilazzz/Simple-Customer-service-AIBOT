@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>US Pizza — Find Outlets</title>
+    <meta name="description" content="Find US Pizza outlets across Malaysia." />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/outlets.css" />
+  </head>
+  <body>
+    <main class="page">
+      <div class="container-wide">
+        <nav class="site-nav" aria-label="Main navigation">
+          <a href="/">Submit Complaint</a>
+          <a href="/chat.html">AI Chatbot</a>
+          <a href="/outlets.html" class="active">Find Outlets</a>
+          <a href="/complaints.html">All Complaints</a>
+          <a href="/admin/login.html">Admin</a>
+        </nav>
+
+        <header class="hero">
+          <span class="badge">US Pizza Malaysia</span>
+          <h1>Find Outlets</h1>
+          <p>Browse all US Pizza locations. Filter by state or search by name, city, or address.</p>
+        </header>
+
+        <section class="card outlets-panel">
+          <div class="outlets-toolbar">
+            <input
+              id="outlet-search"
+              type="search"
+              placeholder="Search outlet, city, or address..."
+              autocomplete="off"
+            />
+            <div id="state-filters" class="state-filters" role="tablist" aria-label="Filter by state"></div>
+          </div>
+
+          <div id="outlets-status" class="outlets-status" aria-live="polite"></div>
+          <div id="outlets-list" class="outlets-list"></div>
+        </section>
+      </div>
+    </main>
+    <script src="/js/outlets.js"></script>
+  </body>
+</html>

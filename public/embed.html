@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content"
+    />
+    <title>US Pizza Support</title>
+    <link rel="stylesheet" href="/css/chat.css" />
+    <style>
+      html, body.chat-embed { margin: 0; background: #fff; }
+      body.chat-embed .chat-header { display: none; }
+      body.chat-embed .chat-links { display: none; }
+    </style>
+  </head>
+  <body class="chat-embed">
+    <div class="chat-page">
+      <div class="chat-widget">
+        <a class="embed-back-link" href="/app-demo.html">← Back</a>
+        <div class="chat-toolbar">
+          <div class="chat-avatar">🤖</div>
+          <div>
+            <strong>US Pizza Support</strong>
+            <small>Customer Care · Malaysia</small>
+          </div>
+        </div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div id="typing" class="typing hidden">Support agent is typing...</div>
+        <div class="chat-compose chat-input-container">
+          <textarea id="chat-input" placeholder="Type your message..." rows="2"></textarea>
+          <div class="photo-upload-bar hidden">
+            <label for="chat-files">📎 Optional photo proof</label>
+            <input id="chat-files" type="file" accept="image/*" multiple />
+            <p id="photo-hint" class="photo-hint hidden">Attach a photo before submitting, or reply "skip".</p>
+          </div>
+          <div class="compose-actions">
+            <button id="send-btn" class="btn btn-primary" type="button">Send</button>
+            <button id="submit-btn" class="btn btn-secondary hidden" type="button" disabled>Submit Complaint</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="/js/menu-click-tracker.js"></script>
+    <script src="/js/chat-keyboard-fix.js"></script>
+    <script src="/js/chat-widget.js"></script>
+  </body>
+</html>

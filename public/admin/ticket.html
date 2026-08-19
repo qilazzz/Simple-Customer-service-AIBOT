@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ticket Detail — US Pizza Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/admin-ticket.css" />
+    <link rel="icon" href="/assets/images/us-pizza-logo.png" type="image/png" />
+  </head>
+  <body class="admin-clay ticket-detail-page">
+    <div class="admin-shell ticket-shell">
+      <header class="ticket-topbar clay-card">
+        <button id="back-btn" type="button" class="btn btn-clay-muted ticket-back-btn">
+          ← Back to List
+        </button>
+        <h1 id="ticket-page-title" class="ticket-page-title">
+          <img
+            src="/assets/images/us-pizza-logo.png"
+            alt=""
+            class="ticket-brand-logo"
+            width="32"
+            height="32"
+          />
+          <span id="ticket-page-title-text">Ticket Detail</span>
+        </h1>
+        <button id="logout-btn" type="button" class="btn btn-clay-muted">Logout</button>
+      </header>
+
+      <div id="ticket-content" class="ticket-content">
+        <div class="ticket-loading clay-card">
+          <div class="ticket-loading-spinner" aria-hidden="true"></div>
+          <p>Loading ticket...</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="photo-modal" class="photo-modal hidden" role="dialog" aria-modal="true" aria-label="Photo preview">
+      <div class="photo-modal-backdrop" data-close-modal></div>
+      <div class="photo-modal-panel clay-card">
+        <button type="button" class="photo-modal-close" data-close-modal aria-label="Close preview">×</button>
+        <img id="photo-modal-img" src="" alt="Attachment preview" />
+      </div>
+    </div>
+
+    <script src="/js/admin-auth.js"></script>
+    <script src="/js/admin-ticket.js"></script>
+  </body>
+</html>

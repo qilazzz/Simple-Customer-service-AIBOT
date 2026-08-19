@@ -1,31 +1,38 @@
 {
   "name": "simple-customer-service-aibot",
   "version": "1.0.0",
-  "description": "WhatsApp AI customer service bot with Gemini",
+  "description": "US Pizza AI customer service API with complaint chatbot and admin dashboard",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "start:pairing": "node scripts/start-pairing.js",
     "dev": "node --watch src/index.js",
-    "stop": "node scripts/stop-bot.js",
-    "reset-session": "node scripts/reset-session.js"
+    "migrate": "knex migrate:latest",
+    "migrate:rollback": "knex migrate:rollback",
+    "migrate:make": "knex migrate:make --knexfile knexfile.js",
+    "seed": "knex seed:run",
+    "db:setup": "knex migrate:latest && knex seed:run",
+    "mobile": "npm run start --prefix mobile/us-pizza-app",
+    "mobile:install": "npm install --prefix mobile/us-pizza-app"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "keywords": [
-    "whatsapp",
     "chatbot",
     "gemini",
     "customer-service",
-    "ai-bot"
+    "ai-bot",
+    "complaints",
+    "api"
   ],
   "license": "MIT",
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
+    "cors": "^2.8.6",
     "dotenv": "^16.4.7",
-    "qrcode": "^1.5.4",
-    "qrcode-terminal": "^0.12.0",
-    "whatsapp-web.js": "^1.27.0"
+    "express": "^5.2.1",
+    "knex": "^3.3.0",
+    "multer": "^2.2.0",
+    "mysql2": "^3.23.3"
   }
 }

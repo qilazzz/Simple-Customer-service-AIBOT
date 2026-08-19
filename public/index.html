@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content"
+    />
+    <title>US Pizza — Submit Complaint</title>
+    <meta
+      name="description"
+      content="Submit a complaint or feedback to US Pizza with optional photo attachments."
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <div class="container">
+        <nav class="site-nav" aria-label="Main navigation">
+          <a href="/">Submit Complaint</a>
+          <a href="/chat.html">AI Chatbot</a>
+          <a href="/outlets.html">Find Outlets</a>
+          <a href="/complaints.html">All Complaints</a>
+          <a href="/login.html">Login</a>
+          <a href="/register.html">Register</a>
+          <a href="/admin/login.html">Admin</a>
+        </nav>
+
+        <header class="hero">
+          <span class="badge">US Pizza Customer Care</span>
+          <h1>Complaint & Feedback</h1>
+          <p>
+            Tell us what went wrong, attach photos if helpful, and receive a ticket ID after
+            submitting this form.
+          </p>
+        </header>
+
+        <section class="card">
+          <div id="success-banner" class="success-banner" role="status" aria-live="polite">
+            <strong>Complaint submitted successfully!</strong>
+            <p>Your ticket ID is <span id="ticket-id"></span>. Please save this number for follow-up.</p>
+            <p id="success-photo-note"></p>
+          </div>
+
+          <div id="error-banner" class="error-banner" role="alert" aria-live="assertive"></div>
+
+          <form id="complaint-form" novalidate enctype="multipart/form-data">
+            <div class="form-grid">
+              <div>
+                <label for="order_id">Order ID <span class="optional">(optional)</span></label>
+                <input
+                  id="order_id"
+                  name="order_id"
+                  type="text"
+                  placeholder="e.g. ORD-123456"
+                  maxlength="100"
+                  autocomplete="off"
+                />
+              </div>
+
+              <div class="form-row two-col">
+                <div>
+                  <label for="customer_name">Full Name</label>
+                  <input
+                    id="customer_name"
+                    name="customer_name"
+                    type="text"
+                    placeholder="Your name"
+                    maxlength="150"
+                    required
+                    autocomplete="name"
+                  />
+                  <div id="error-customer_name" class="field-error"></div>
+                </div>
+
+                <div>
+                  <label for="customer_email">Email</label>
+                  <input
+                    id="customer_email"
+                    name="customer_email"
+                    type="email"
+                    placeholder="you@example.com"
+                    maxlength="150"
+                    required
+                    autocomplete="email"
+                  />
+                  <div id="error-customer_email" class="field-error"></div>
+                </div>
+              </div>
+
+              <div class="form-row two-col">
+                <div>
+                  <label for="customer_phone">Phone Number <span class="optional">(optional)</span></label>
+                  <input
+                    id="customer_phone"
+                    name="customer_phone"
+                    type="tel"
+                    placeholder="e.g. 013 667 9056"
+                    maxlength="50"
+                    autocomplete="tel"
+                  />
+                </div>
+
+                <div>
+                  <label for="complaint_category">Complaint Category</label>
+                  <select id="complaint_category" name="complaint_category">
+                    <option value="wrong_order">Wrong Order</option>
+                    <option value="late_delivery">Late Delivery</option>
+                    <option value="food_quality">Food Quality</option>
+                    <option value="service">Service</option>
+                    <option value="other" selected>Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label for="message">Description / Message</label>
+                <textarea
+                  id="message"
+                  name="message"
+                  placeholder="Please describe your complaint in detail..."
+                  required
+                ></textarea>
+                <div id="error-message" class="field-error"></div>
+              </div>
+
+              <div class="photo-upload">
+                <label for="photos">Photo Evidence <span class="optional">(optional, up to 5 images)</span></label>
+                <p class="photo-hint">Upload photos of wrong orders, delivery issues, or food quality problems. JPG, PNG, WEBP, or GIF — max 5 MB each.</p>
+                <input
+                  id="photos"
+                  name="photos"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple
+                />
+                <div id="photo-preview-grid" class="photo-preview-grid"></div>
+              </div>
+
+              <div class="actions">
+                <button id="submit-btn" type="submit">Submit Complaint</button>
+              </div>
+            </div>
+          </form>
+
+          <p class="footer-note">
+            Need help? Call us at 013 667 9056 or use in-app support.
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <script src="/js/complaint-form.js"></script>
+  </body>
+</html>

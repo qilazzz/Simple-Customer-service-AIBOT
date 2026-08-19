@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>US Pizza — All Complaints</title>
+    <meta
+      name="description"
+      content="View all customer complaints and attached photo evidence for US Pizza."
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <div class="container-wide">
+        <nav class="site-nav" aria-label="Main navigation">
+          <a href="/">Submit Complaint</a>
+          <a href="/chat.html">AI Chatbot</a>
+          <a href="/outlets.html">Find Outlets</a>
+          <a href="/complaints.html" class="active">All Complaints</a>
+        </nav>
+
+        <header class="hero">
+          <span class="badge">US Pizza Admin View</span>
+          <h1>All Complaints</h1>
+          <p>
+            Review every submitted complaint, status, and photo evidence in one place.
+          </p>
+        </header>
+
+        <div id="stats-bar" class="stats-bar"></div>
+        <div id="loading-state" class="loading-state">Loading complaints...</div>
+        <div id="empty-state" class="empty-state">No complaints submitted yet.</div>
+        <div id="complaints-list" class="complaints-grid"></div>
+      </div>
+    </main>
+
+    <script src="/js/complaints-list.js"></script>
+  </body>
+</html>

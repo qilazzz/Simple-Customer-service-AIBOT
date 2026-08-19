@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>US Pizza Admin Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="icon" href="/assets/images/us-pizza-logo.png" type="image/png" />
+  </head>
+  <body class="admin-clay">
+    <div class="admin-app" id="admin-app">
+      <aside id="sidebar" class="admin-sidebar sidebar is-expanded" aria-label="Admin navigation">
+        <div class="sidebar-header">
+          <div class="sidebar-brand">
+            <img
+              src="/assets/images/us-pizza-logo.png"
+              alt="US Pizza"
+              class="sidebar-brand-logo"
+              width="40"
+              height="40"
+            />
+            <div class="sidebar-brand-text">
+              <p class="admin-eyebrow">US Pizza Malaysia</p>
+              <span class="sidebar-title">Admin Portal</span>
+            </div>
+          </div>
+          <button
+            id="sidebar-toggle"
+            type="button"
+            class="sidebar-toggle"
+            aria-label="Collapse sidebar"
+            aria-expanded="true"
+            aria-controls="sidebar"
+          >
+            <span class="sidebar-toggle-icon" aria-hidden="true">&lt;</span>
+          </button>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Dashboard sections">
+          <button
+            type="button"
+            class="sidebar-nav-item is-active"
+            data-tab="complaints"
+            id="tab-btn-complaints"
+          >
+            <span class="sidebar-nav-icon" aria-hidden="true">📋</span>
+            <span class="sidebar-nav-label">Complaints Dashboard</span>
+          </button>
+          <button type="button" class="sidebar-nav-item" data-tab="overview" id="tab-btn-overview">
+            <span class="sidebar-nav-icon" aria-hidden="true">📈</span>
+            <span class="sidebar-nav-label">Analytics / Summary</span>
+          </button>
+          <button type="button" class="sidebar-nav-item" data-tab="live-chat" id="tab-btn-live-chat">
+            <span class="sidebar-nav-icon" aria-hidden="true">💬</span>
+            <span class="sidebar-nav-label">Live Chat</span>
+            <span id="live-chat-badge" class="sidebar-nav-badge hidden">0</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="sidebar-profile clay-inset">
+            <img
+              src="/assets/images/us-pizza-logo.png"
+              alt=""
+              class="profile-avatar-img"
+              width="32"
+              height="32"
+            />
+            <div class="sidebar-profile-text">
+              <strong>Admin User</strong>
+              <span>Administrator</span>
+            </div>
+          </div>
+          <button id="logout-btn" type="button" class="sidebar-logout-btn">
+            <span class="sidebar-logout-icon" aria-hidden="true">🚪</span>
+            <span class="sidebar-logout-label">Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      <div class="main-content">
+        <header class="admin-header clay-card">
+          <div class="admin-header-main">
+            <div class="main-content-head">
+              <h1 class="main-content-title">Dashboard Overview</h1>
+              <p class="main-content-subtitle">Monitor complaints, analytics, and live support</p>
+            </div>
+            <div class="metric-row">
+              <div class="metric-chip clay-inset">
+                <span class="metric-label">Total Complaints</span>
+                <strong id="metric-total">—</strong>
+              </div>
+              <div class="metric-chip clay-inset">
+                <span class="metric-label">Pending</span>
+                <strong id="metric-pending-complaints">—</strong>
+              </div>
+              <div class="metric-chip clay-inset">
+                <span class="metric-label">In Progress</span>
+                <strong id="metric-in-progress-complaints">—</strong>
+              </div>
+            </div>
+          </div>
+        </header>
+
+      <section id="tab-complaints" class="tab-panel is-active" aria-labelledby="tab-btn-complaints">
+        <div class="admin-card clay-card">
+          <div class="panel-head panel-head-with-actions">
+            <div class="panel-head-copy">
+              <h2>Complaints Dashboard</h2>
+              <p id="complaints-count-label">Loading...</p>
+            </div>
+            <button
+              id="category-menu-btn"
+              type="button"
+              class="category-hamburger-btn"
+              aria-expanded="false"
+              aria-controls="category-menu-panel"
+              aria-haspopup="true"
+            >
+              <span class="category-hamburger-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"></path>
+                </svg>
+              </span>
+              <span id="category-filter-label">Category: All</span>
+            </button>
+          </div>
+
+          <div id="category-menu-backdrop" class="category-menu-backdrop hidden" aria-hidden="true"></div>
+          <nav id="category-menu-panel" class="category-menu-panel hidden" aria-label="Filter by category">
+            <div class="category-menu-head">
+              <h3>Filter by Category</h3>
+              <button type="button" id="category-menu-close" class="category-menu-close" aria-label="Close menu">&times;</button>
+            </div>
+            <ul id="category-menu-list" class="category-menu-list">
+              <li><button type="button" class="category-menu-item is-active" data-category="">Clear Filter / Show All</button></li>
+            </ul>
+          </nav>
+
+          <div class="filters clay-inset">
+            <input id="search" type="search" placeholder="Search name, email, order ID, outlet..." />
+            <select id="stateFilter" aria-label="Filter by state">
+              <option value="">All States</option>
+            </select>
+            <select id="outletFilter" aria-label="Filter by outlet">
+              <option value="">All Outlets</option>
+            </select>
+            <select id="status-filter">
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+            </select>
+            <button id="apply-filters" type="button" class="btn btn-clay-brand">Filter</button>
+          </div>
+
+          <div class="table-wrap clay-inset">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticket / Order ID</th>
+                  <th>Customer</th>
+                  <th>Outlet</th>
+                  <th>Category</th>
+                  <th>Source</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="complaints-table-body">
+                <tr><td colspan="9">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="complaints-pagination" class="pagination-bar hidden" aria-label="Complaints pagination">
+            <button id="complaints-page-prev" type="button" class="btn btn-clay-muted pagination-btn">‹ Previous</button>
+            <div id="complaints-page-numbers" class="page-numbers"></div>
+            <button id="complaints-page-next" type="button" class="btn btn-clay-muted pagination-btn">Next ›</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-overview" class="tab-panel" aria-labelledby="tab-btn-overview" hidden>
+        <div class="overview-grid">
+          <div class="stat-card clay-card">
+            <span class="stat-icon">🧾</span>
+            <strong id="overview-total-complaints">—</strong>
+            <span>Total Complaints</span>
+          </div>
+          <div class="stat-card clay-card">
+            <span class="stat-icon">⏳</span>
+            <strong id="overview-pending-complaints">—</strong>
+            <span>Pending</span>
+          </div>
+          <div class="stat-card clay-card stat-accent">
+            <span class="stat-icon">🔄</span>
+            <strong id="overview-in-progress-complaints">—</strong>
+            <span>In Progress</span>
+          </div>
+          <div class="stat-card clay-card stat-accent">
+            <span class="stat-icon">✅</span>
+            <strong id="overview-resolved-complaints">—</strong>
+            <span>Resolved</span>
+          </div>
+        </div>
+
+        <div class="admin-card clay-card overview-detail">
+          <h2>Activity Summary</h2>
+          <div id="overview-breakdown" class="overview-breakdown clay-inset">
+            Loading summary...
+          </div>
+          <h3>Recent Complaints</h3>
+          <ul id="overview-recent" class="overview-recent clay-inset"></ul>
+        </div>
+
+        <div class="admin-card clay-card menu-analytics-card">
+          <div class="panel-head">
+            <h2>Chatbot Menu Click Analytics</h2>
+            <p id="menu-analytics-total">Loading...</p>
+          </div>
+
+          <div id="menu-analytics-breakdown" class="menu-analytics-breakdown clay-inset">
+            Loading click data...
+          </div>
+
+          <div class="menu-analytics-chart-wrap clay-inset">
+            <h3 class="menu-analytics-chart-title">Click Comparison</h3>
+            <div id="menu-analytics-chart" class="menu-analytics-chart" role="img" aria-label="Bar chart of menu click counts">
+              <p class="menu-analytics-empty">Loading chart...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-live-chat" class="tab-panel" aria-labelledby="tab-btn-live-chat" hidden>
+        <div class="live-chat-workspace clay-card">
+          <aside class="live-chat-queue clay-inset">
+            <div class="live-chat-queue-head">
+              <h2 id="live-chat-queue-title">Active Chats</h2>
+              <p id="live-chat-queue-summary">Loading queue...</p>
+            </div>
+
+            <div class="live-chat-subtabs" role="tablist" aria-label="Chat views">
+              <button
+                id="live-chat-view-active"
+                type="button"
+                class="live-chat-subtab is-active"
+                role="tab"
+                aria-selected="true"
+                data-view="active"
+              >
+                Active Chats
+              </button>
+              <button
+                id="live-chat-view-resolved"
+                type="button"
+                class="live-chat-subtab"
+                role="tab"
+                aria-selected="false"
+                data-view="resolved"
+              >
+                Resolved Chats
+              </button>
+              <button
+                id="live-chat-view-trash"
+                type="button"
+                class="live-chat-subtab"
+                role="tab"
+                aria-selected="false"
+                data-view="trash"
+              >
+                Trash / Deleted
+                <span id="live-chat-trash-badge" class="live-chat-trash-badge hidden" aria-label="Deleted chats count">0</span>
+              </button>
+            </div>
+
+            <div id="live-chat-bulk-toolbar" class="live-chat-bulk-toolbar hidden">
+              <label class="live-chat-select-all">
+                <input id="live-chat-select-all" type="checkbox" />
+                <span>Select all</span>
+              </label>
+              <div class="live-chat-bulk-actions">
+                <button id="live-chat-delete-selected-btn" type="button" class="btn btn-clay-danger btn-sm">
+                  Delete Selected
+                </button>
+                <button id="live-chat-delete-all-btn" type="button" class="btn btn-clay-danger btn-sm">
+                  Delete All
+                </button>
+              </div>
+            </div>
+
+            <input
+              id="live-chat-search"
+              type="search"
+              class="live-chat-search"
+              placeholder="Search by name or phone..."
+              aria-label="Search live chats"
+            />
+            <ul id="live-chat-list" class="live-chat-list">
+              <li class="live-chat-empty">Loading active chats...</li>
+            </ul>
+          </aside>
+
+          <div class="live-chat-panel">
+            <div id="live-chat-header" class="live-chat-header clay-inset hidden">
+              <div class="live-chat-header-info">
+                <h3 id="live-chat-customer-name">Customer</h3>
+                <p id="live-chat-customer-meta">—</p>
+                <p id="live-chat-customer-outlet" class="live-chat-outlet"></p>
+              </div>
+              <button id="live-chat-resolve-btn" type="button" class="btn btn-clay-brand hidden">
+                Mark Resolved
+              </button>
+            </div>
+
+            <div id="live-chat-placeholder" class="live-chat-placeholder clay-inset">
+              <p>Select a customer from the queue to start chatting.</p>
+            </div>
+
+            <div id="live-chat-messages" class="live-chat-messages clay-inset hidden" aria-live="polite"></div>
+
+            <div id="live-chat-compose" class="live-chat-compose clay-inset hidden">
+              <div class="live-chat-compose-tools">
+                <label for="live-chat-templates" class="sr-only">Quick responses</label>
+                <select id="live-chat-templates" class="live-chat-templates">
+                  <option value="">Quick response...</option>
+                  <option value="Hello! How can I help you today?">Hello! How can I help you today?</option>
+                  <option value="Your issue is being processed.">Your issue is being processed.</option>
+                  <option value="Thank you for waiting. I'm reviewing your case now.">Thank you for waiting. I'm reviewing your case now.</option>
+                  <option value="Is there anything else I can help you with?">Is there anything else I can help you with?</option>
+                </select>
+              </div>
+              <textarea
+                id="live-chat-input"
+                rows="3"
+                placeholder="Type your reply to the customer..."
+              ></textarea>
+              <div class="live-chat-compose-actions">
+                <button id="live-chat-send-btn" type="button" class="btn btn-clay-brand">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      </div>
+    </div>
+
+    <div id="click-details-modal" class="admin-modal hidden" role="dialog" aria-modal="true" aria-labelledby="click-details-title">
+      <div class="admin-modal-backdrop" data-close-modal></div>
+      <div class="admin-modal-panel clay-card">
+        <div class="admin-modal-header">
+          <h2 id="click-details-title">Customers Who Clicked</h2>
+          <button type="button" class="admin-modal-close" data-close-modal aria-label="Close">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+          <p id="click-details-loading" class="click-details-loading hidden">Loading click details...</p>
+          <p id="click-details-error" class="click-details-error hidden"></p>
+          <div id="click-details-table-wrap" class="table-wrap clay-inset hidden">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Customer Name</th>
+                  <th>Email / Phone</th>
+                  <th>Date &amp; Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="click-details-body"></tbody>
+            </table>
+          </div>
+          <p id="click-details-empty" class="menu-analytics-empty hidden">No clicks recorded for this menu option yet.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="live-chat-delete-modal" class="admin-modal hidden" role="dialog" aria-modal="true" aria-labelledby="live-chat-delete-title">
+      <div class="admin-modal-backdrop" data-close-live-chat-modal></div>
+      <div class="admin-modal-panel clay-card live-chat-delete-modal-panel">
+        <div class="admin-modal-header">
+          <h2 id="live-chat-delete-title">Confirm Deletion</h2>
+          <button type="button" class="admin-modal-close" data-close-live-chat-modal aria-label="Close">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+          <p id="live-chat-delete-message">Are you sure you want to move this chat to the trash?</p>
+        </div>
+        <div class="admin-modal-footer live-chat-delete-modal-footer">
+          <button id="live-chat-delete-cancel-btn" type="button" class="btn btn-clay-secondary" data-close-live-chat-modal>
+            Cancel
+          </button>
+          <button id="live-chat-delete-confirm-btn" type="button" class="btn btn-clay-danger">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/admin-auth.js"></script>
+    <script src="/js/admin-dashboard.js"></script>
+    <script src="/js/admin-live-chat.js"></script>
+  </body>
+</html>

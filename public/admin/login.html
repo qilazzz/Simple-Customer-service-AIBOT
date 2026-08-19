@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login — US Pizza</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="icon" href="/assets/images/us-pizza-logo.png" type="image/png" />
+  </head>
+  <body class="admin-clay">
+    <div class="login-wrap">
+      <div class="admin-card login-card clay-card">
+        <div class="login-brand">
+          <img
+            src="/assets/images/us-pizza-logo.png"
+            alt="US Pizza"
+            class="login-brand-logo"
+            width="72"
+            height="72"
+          />
+        </div>
+        <p class="admin-eyebrow">US Pizza Malaysia</p>
+        <h1>Admin Login</h1>
+        <p>Sign in to manage customer complaints.</p>
+        <div id="login-error" class="error-msg hidden"></div>
+        <form id="login-form">
+          <label for="password">Password</label>
+          <input id="password" type="password" required placeholder="Admin password" />
+          <button type="submit" class="btn btn-clay-brand" style="width:100%;margin-top:1rem">Login</button>
+        </form>
+        <p style="margin-top:1rem;text-align:center"><a href="/chat.html">← Back to customer chat</a></p>
+      </div>
+    </div>
+    <script src="/js/admin-auth.js"></script>
+    <script src="/js/admin-login.js"></script>
+  </body>
+</html>
