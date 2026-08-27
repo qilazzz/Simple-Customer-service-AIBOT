@@ -20,6 +20,14 @@ export function resolveApiBaseUrl() {
   const cached = sessionStorage.getItem(STORAGE_KEY);
   if (cached) return cached.replace(/\/$/, '');
 
+  // Same Render/host deploy — API and portal share one origin
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    const host = window.location.hostname;
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      return window.location.origin.replace(/\/$/, '');
+    }
+  }
+
   return 'http://localhost:3000';
 }
 

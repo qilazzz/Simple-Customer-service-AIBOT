@@ -32,6 +32,9 @@ app.use('/api/analytics', analyticsRouter);
 app.use('/api/auth', authRouter);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
+// Customer user portal (app-like SPA)
+app.use('/portal', express.static(path.join(process.cwd(), 'us-pizza-user-portal')));
+
 app.use(express.static(path.join(process.cwd(), 'public')));
 
 app.get('/health', (_req, res) => {
@@ -79,6 +82,7 @@ function startWebServer() {
     console.log(`   App demo:        http://localhost:${PORT}/app-demo.html`);
     console.log(`   Embed (WebView): http://localhost:${PORT}/embed.html`);
     console.log(`   API config:      GET http://localhost:${PORT}/api/config`);
+    console.log(`   Customer portal: http://localhost:${PORT}/portal/`);
     console.log(`   Admin dashboard: http://localhost:${PORT}/admin/login.html`);
     console.log(`\n   App integration endpoints:`);
     console.log(`   POST /api/chat/session       — start chat session`);
