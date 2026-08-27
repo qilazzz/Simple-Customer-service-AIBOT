@@ -2,6 +2,7 @@ import { BOT_MENU } from '../config.js';
 import { getCustomerUserId } from '../auth.js';
 import { CustomerSupportApi } from '../api.js';
 import { API_BASE_URL } from '../config.js';
+import { trackMenuButtonClick } from '../analytics.js';
 
 function formatReply(text) {
   return String(text ?? '')
@@ -98,9 +99,11 @@ export function createBotChatController(container, { onOpenOutlets, onTicketSubm
         const item = menuOptions.find((entry) => entry.id === chip.dataset.chipId);
         if (!item) return;
         if (item.id === 'find_outlet') {
+          trackMenuButtonClick(item.label);
           onOpenOutlets?.();
           return;
         }
+        trackMenuButtonClick(item.label);
         dispatchMessage(item.label);
       });
     });
@@ -265,7 +268,10 @@ export function createBotChatController(container, { onOpenOutlets, onTicketSubm
         }
         if (data.reply) append(data.reply, 'ai');
         renderMenuFooter();
-        if (initialOption) await dispatchMessage(initialOption, { showUserBubble: true });
+        if (initialOption) {
+          trackMenuButtonClick(initialOption);
+          await dispatchMessage(initialOption, { showUserBubble: true });
+        }
       } catch (err) {
         append(
           `${err.message}\n\nMake sure the API is running and apiBase points to ${API_BASE_URL}.`,

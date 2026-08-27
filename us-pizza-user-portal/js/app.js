@@ -14,6 +14,7 @@ import { renderOutletsView } from './views/outlets.js';
 import { renderFaqView } from './views/faq.js';
 import { createBotChatController } from './views/bot-chat.js';
 import { createLiveChatController } from './views/live-chat.js';
+import { trackMenuButtonClick } from './analytics.js';
 
 const VIEWS = ['home', 'outlets', 'menu', 'bot', 'live', 'login', 'register', 'faq'];
 
@@ -256,17 +257,20 @@ function navigateTo(view, options = {}) {
 }
 
 function handleMenuOption(optionId) {
+  const item = SUPPORT_MENU.find((entry) => entry.id === optionId);
+
   if (optionId === 'find_outlet') {
+    trackMenuButtonClick(item?.label || 'Find an Outlet');
     navigateTo('outlets');
     return;
   }
 
   if (optionId === 'other') {
+    trackMenuButtonClick(item?.label || 'Other / Talk to Support');
     promptLiveSupportAccess();
     return;
   }
 
-  const item = SUPPORT_MENU.find((entry) => entry.id === optionId);
   navigateTo('bot', { initialOption: item?.label });
 }
 

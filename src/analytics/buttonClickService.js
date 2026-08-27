@@ -7,6 +7,40 @@ const BUTTON_META = Object.fromEntries(
   SUPPORT_MENU.map((item) => [item.label, { emoji: item.emoji, id: item.id }]),
 );
 
+let ensuredTable = false;
+
+async function ensureButtonClicksTable() {
+  if (ensuredTable) return true;
+  const exists = await db.schema.hasTable('button_clicks');
+  if (!exists) {
+    await db.schema.createTable('button_clicks', (table) => {
+      table.increments('id').primary();
+      table.string('button_name', 150).notNullable();
+      table.string('user_id', 100).nullable();
+      table.timestamp('created_at').notNullable().defaultTo(db.fn.now());
+      table.index(['button_name', 'created_at']);
+    });
+  }
+  ensuredTable = true;
+  return true;
+}
+
+function emptyStats() {
+  return {
+    total_clicks: 0,
+    buttons: VALID_BUTTON_NAMES.map((buttonName) => {
+      const meta = BUTTON_META[buttonName] || {};
+      return {
+        button_name: buttonName,
+        emoji: meta.emoji || '',
+        id: meta.id || null,
+        count: 0,
+        percentage: 0,
+      };
+    }),
+  };
+}
+
 /**
  * @param {string} buttonName
  */
@@ -27,6 +61,8 @@ async function trackButtonClick(data) {
 
   const userId = data.user_id ? String(data.user_id).trim().slice(0, 100) : null;
 
+  await ensureButtonClicksTable();
+
   const [id] = await db('button_clicks').insert({
     button_name: buttonName,
     user_id: userId || null,
@@ -36,6 +72,13 @@ async function trackButtonClick(data) {
 }
 
 async function getButtonClickStats() {
+  try {
+    await ensureButtonClicksTable();
+  } catch (err) {
+    console.error('button_clicks table unavailable:', err.message);
+    return emptyStats();
+  }
+
   const rows = await db('button_clicks')
     .select('button_name')
     .count('* as count')
@@ -79,6 +122,8 @@ async function getButtonClickDetails(buttonName) {
     error.statusCode = 400;
     throw error;
   }
+
+  await ensureButtonClicksTable();
 
   const hasProfile = await db.schema.hasTable('profile');
 
