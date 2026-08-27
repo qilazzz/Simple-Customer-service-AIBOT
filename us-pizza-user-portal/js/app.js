@@ -11,10 +11,11 @@ import { renderHomeView } from './views/home.js';
 import { renderMenuView } from './views/menu.js';
 import { renderLoginView, renderRegisterView } from './views/auth.js';
 import { renderOutletsView } from './views/outlets.js';
+import { renderFaqView } from './views/faq.js';
 import { createBotChatController } from './views/bot-chat.js';
 import { createLiveChatController } from './views/live-chat.js';
 
-const VIEWS = ['home', 'outlets', 'menu', 'bot', 'live', 'login', 'register'];
+const VIEWS = ['home', 'outlets', 'menu', 'bot', 'live', 'login', 'register', 'faq'];
 
 let currentView = 'home';
 let navParams = {};
@@ -47,6 +48,8 @@ function getTitle(view, params = {}) {
       return 'Log In';
     case 'register':
       return 'Register';
+    case 'faq':
+      return 'FAQ';
     default:
       return 'US Pizza';
   }
@@ -140,7 +143,7 @@ function finishAuthRedirect() {
 function navigateBack() {
   if (currentView === 'live' || currentView === 'bot') navigateTo('menu');
   else if (currentView === 'menu') navigateTo('home');
-  else if (currentView === 'outlets') navigateTo('home');
+  else if (currentView === 'outlets' || currentView === 'faq') navigateTo('home');
   else if (currentView === 'login' || currentView === 'register') navigateTo('home');
   else navigateTo('home');
 }
@@ -199,6 +202,15 @@ function navigateTo(view, options = {}) {
     return;
   }
 
+  if (view === 'faq') {
+    showView('faq', options);
+    renderFaqView(document.getElementById('view-faq'), {
+      onFindOutlets: () => navigateTo('outlets'),
+      onOpenSupport: promptSupportAccess,
+    });
+    return;
+  }
+
   if (view === 'login') {
     showView('login', options);
     renderLoginView(document.getElementById('view-login'), {
@@ -239,6 +251,7 @@ function navigateTo(view, options = {}) {
   renderHomeView(document.getElementById('view-home'), {
     onFindOutlets: () => navigateTo('outlets'),
     onOpenSupport: promptSupportAccess,
+    onOpenFaq: () => navigateTo('faq'),
   });
 }
 
