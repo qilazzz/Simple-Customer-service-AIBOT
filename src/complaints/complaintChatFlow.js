@@ -22,7 +22,9 @@ function hasGuestContactComplete(collected) {
  * @param {Object} session
  */
 function needsGuestContact(collected, session) {
-  if (!session?.isGuest) return false;
+  if (session?.userId) return false;
+  if (session?.isGuest === false) return false;
+  if (session?.isGuest !== true) return false;
   return !hasGuestContactComplete(collected);
 }
 

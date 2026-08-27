@@ -16,7 +16,10 @@ function formatReply(text) {
 export function createBotChatController(container, { guestMode = false, onOpenOutlets, onTicketSubmitted } = {}) {
   const api = new CustomerSupportApi();
   const outletsApi = new OutletsApi();
-  const isGuest = guestMode || !isAuthenticated();
+
+  function shouldCollectGuestContact() {
+    return guestMode && !isAuthenticated();
+  }
 
   let sessionId = null;
   let stage = 'menu';
@@ -138,7 +141,10 @@ export function createBotChatController(container, { guestMode = false, onOpenOu
 
   function renderGuestBar() {
     const showGuestForm =
-      isGuest && needsGuestContact && flow === 'complaint' && stage === 'contact';
+      shouldCollectGuestContact() &&
+      needsGuestContact &&
+      flow === 'complaint' &&
+      stage === 'contact';
 
     if (!showGuestForm) {
       guestBarEl.classList.add('hidden');

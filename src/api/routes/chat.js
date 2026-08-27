@@ -15,6 +15,7 @@ const { processSupportChatTurn, startLiveAgentFlow, SUPPORT_MENU } = require('..
 const { getMenuWelcomeText, cleanBotReply } = require('../../support/supportMenu');
 const { handlePhotoUpload } = require('../middleware/upload');
 const { optionalCustomer, requireCustomer } = require('../middleware/customerAuth');
+const { getCustomerById } = require('../../auth/customerAuthService');
 
 const router = express.Router();
 
@@ -37,6 +38,26 @@ function attachCustomerProfile(session, customer) {
 
 function markGuestSession(session, customer) {
   session.isGuest = !customer;
+}
+
+async function syncSessionCustomer(session, req, bodyUserId) {
+  let customer = req.customer || null;
+
+  if (!customer && bodyUserId && bodyUserId !== 'guest') {
+    try {
+      customer = await getCustomerById(bodyUserId);
+    } catch (err) {
+      console.warn('Customer lookup by user_id failed:', err.message);
+    }
+  }
+
+  if (customer) {
+    attachCustomerProfile(session, customer);
+  } else {
+    markGuestSession(session, null);
+  }
+
+  return customer;
 }
 
 function formatDirectSupportPayload(sessionId, session, result, customer, extra = {}) {
@@ -170,6 +191,7 @@ router.get('/history', requireCustomer, async (req, res) => {
 
 router.post('/session', optionalCustomer, async (req, res) => {
   const directSupport = isDirectSupportRequest(req);
+  const bodyUserId = req.body?.user_id || req.body?.userId || null;
 
   if (directSupport) {
     if (req.customer) {
@@ -202,11 +224,10 @@ router.post('/session', optionalCustomer, async (req, res) => {
 
     const sessionId = createSession();
     const session = getSession(sessionId);
-    markGuestSession(session, req.customer);
-    attachCustomerProfile(session, req.customer);
+    const customer = await syncSessionCustomer(session, req, bodyUserId);
 
     try {
-      const payload = await initializeDirectSupportSession(sessionId, session, req.customer, {
+      const payload = await initializeDirectSupportSession(sessionId, session, customer, {
         extra: { resumed: false },
       });
       return res.json(payload);
@@ -232,19 +253,11 @@ router.post('/session', optionalCustomer, async (req, res) => {
 
   const sessionId = createSession();
   const session = getSession(sessionId);
-  markGuestSession(session, req.customer);
+  const customer = await syncSessionCustomer(session, req, bodyUserId);
 
-  if (req.customer) {
-    session.userId = req.customer.user_id;
-    session.collected = {
-      ...(session.collected || {}),
-      customer_name: req.customer.name,
-      customer_contact: req.customer.email || req.customer.phone_number,
-      customer_email: req.customer.email,
-    };
-
+  if (customer) {
     try {
-      await chatPersistence.createPersistedSession(sessionId, req.customer.user_id, {
+      await chatPersistence.createPersistedSession(sessionId, customer.user_id, {
         flow: 'menu',
         stage: 'menu',
         collected: session.collected,
@@ -258,7 +271,7 @@ router.post('/session', optionalCustomer, async (req, res) => {
 
   appendMessage(sessionId, 'ai', greeting);
 
-  if (req.customer) {
+  if (customer) {
     try {
       await chatPersistence.persistMemoryMessage(sessionId, 'ai', greeting);
     } catch (err) {
@@ -276,7 +289,7 @@ router.post('/session', optionalCustomer, async (req, res) => {
     show_menu: true,
     ready_to_submit: false,
     menu_options: SUPPORT_MENU,
-    user: req.customer || null,
+    user: customer || null,
   });
 });
 
@@ -318,11 +331,7 @@ router.post('/message', optionalCustomer, async (req, res) => {
     return res.status(404).json({ success: false, message: 'Chat session expired. Please start again.' });
   }
 
-  if (req.customer) {
-    attachCustomerProfile(session, req.customer);
-  } else {
-    markGuestSession(session, null);
-  }
+  const customer = await syncSessionCustomer(session, req, bodyUserId);
 
   if (session.directSupport && session.flow !== 'live_agent') {
     try {
@@ -390,7 +399,8 @@ router.post('/message', optionalCustomer, async (req, res) => {
   try {
     const result = await processSupportChatTurn(session, message.trim(), {
       chatSessionId: sessionId,
-      userId: req.customer?.user_id || bodyUserId || session.userId || null,
+      userId: customer?.user_id || bodyUserId || session.userId || null,
+      customer: customer || null,
     });
     updateCollected(sessionId, result.collected || session.collected);
 
@@ -449,6 +459,7 @@ router.post('/message', optionalCustomer, async (req, res) => {
 
 router.post('/guest-details', optionalCustomer, async (req, res) => {
   const { sessionId, name, email, phone } = req.body;
+  const bodyUserId = req.body?.user_id || req.body?.userId || null;
 
   if (!sessionId) {
     return res.status(400).json({ success: false, message: 'sessionId is required.' });
@@ -459,16 +470,28 @@ router.post('/guest-details', optionalCustomer, async (req, res) => {
     return res.status(404).json({ success: false, message: 'Chat session expired. Please start again.' });
   }
 
-  if (req.customer) {
-    attachCustomerProfile(session, req.customer);
-  } else {
-    markGuestSession(session, null);
-  }
+  const customer = await syncSessionCustomer(session, req, bodyUserId);
 
-  if (!session.isGuest) {
-    return res.status(400).json({
-      success: false,
-      message: 'Guest contact details are only required for guest sessions.',
+  if (!session.isGuest || customer) {
+    session.stage = 'outlet';
+    session.flow = session.flow || 'complaint';
+    const outlets = await outletService.listOutletsForPicker();
+    const reply = cleanBotReply(getStageReply('outlet'));
+
+    appendMessage(sessionId, 'ai', reply);
+    chatPersistence.persistMemoryMessage(sessionId, 'ai', reply).catch(() => {});
+
+    return res.json({
+      success: true,
+      reply,
+      collected: session.collected,
+      stage: 'outlet',
+      flow: session.flow,
+      show_menu: false,
+      ready_to_submit: false,
+      needs_guest_contact: false,
+      outlet_options: formatOutletOptions(outlets),
+      menu_options: SUPPORT_MENU,
     });
   }
 

@@ -112,6 +112,19 @@ function joinReply(intro, body) {
   return `${intro.trim()}\n\n${body.trim()}`;
 }
 
+function attachCustomerProfile(session, customer) {
+  if (!customer) return;
+  session.isGuest = false;
+  session.userId = customer.user_id;
+  session.collected = {
+    ...(session.collected || {}),
+    customer_name: customer.name,
+    customer_contact: customer.email || customer.phone_number,
+    customer_email: customer.email,
+    customer_phone: customer.phone_number || null,
+  };
+}
+
 async function startComplaintFlow(session, aiReply = null) {
   session.flow = 'complaint';
   session.collected = session.collected || {};
@@ -208,7 +221,14 @@ async function routeByIntent(session, intent, userMessage, aiReply = null, conte
 async function processSupportChatTurn(session, userMessage, context = {}) {
   session.flow = session.flow || 'menu';
   session.stage = session.stage || 'menu';
-  if (context.userId) session.userId = context.userId;
+  if (context.customer) {
+    attachCustomerProfile(session, context.customer);
+  } else if (context.userId && context.userId !== 'guest') {
+    session.userId = context.userId;
+    session.isGuest = false;
+  } else if (context.userId) {
+    session.userId = context.userId;
+  }
 
   if (session.flow === 'live_agent') {
     return {

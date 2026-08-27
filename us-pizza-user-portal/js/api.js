@@ -1,5 +1,5 @@
 import { buildApiUrl } from './config.js';
-import { customerAuthHeaders } from './auth.js';
+import { customerAuthHeaders, getCustomerUserId } from './auth.js';
 
 export class CustomerSupportApi {
   constructor(options = {}) {
@@ -28,20 +28,28 @@ export class CustomerSupportApi {
   }
 
   async startBotSession() {
+    const body = { direct_support: false };
+    const userId = getCustomerUserId();
+    if (userId && userId !== 'guest') body.user_id = userId;
+
     const data = await this.request('/api/chat/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ direct_support: false }),
+      body: JSON.stringify(body),
     });
     this.sessionId = data.sessionId;
     return data;
   }
 
   async startLiveSession() {
+    const body = { direct_support: true };
+    const userId = getCustomerUserId();
+    if (userId && userId !== 'guest') body.user_id = userId;
+
     const data = await this.request('/api/chat/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ direct_support: true }),
+      body: JSON.stringify(body),
     });
     this.sessionId = data.sessionId;
     return data;
