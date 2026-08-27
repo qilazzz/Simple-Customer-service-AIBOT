@@ -2,6 +2,9 @@
  * @param {import('knex').Knex} knex
  */
 exports.up = async function up(knex) {
+  const hasComplaints = await knex.schema.hasTable('complaints');
+  if (!hasComplaints) return;
+
   const hasOutletId = await knex.schema.hasColumn('complaints', 'outlet_id');
   if (!hasOutletId) {
     await knex.schema.alterTable('complaints', (table) => {

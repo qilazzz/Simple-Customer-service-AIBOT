@@ -2,6 +2,9 @@
  * @param {import('knex').Knex} knex
  */
 exports.up = async function up(knex) {
+  const hasComplaints = await knex.schema.hasTable('complaints');
+  if (!hasComplaints || (await knex.schema.hasTable('complaint_photos'))) return;
+
   await knex.schema.createTable('complaint_photos', (table) => {
     table.increments('id').primary();
     table
