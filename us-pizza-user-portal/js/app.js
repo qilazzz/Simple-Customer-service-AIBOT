@@ -12,11 +12,12 @@ import { renderMenuView } from './views/menu.js';
 import { renderLoginView, renderRegisterView } from './views/auth.js';
 import { renderOutletsView } from './views/outlets.js';
 import { renderFaqView } from './views/faq.js';
+import { renderComplaintFormView } from './views/complaint-form.js';
 import { createBotChatController } from './views/bot-chat.js';
 import { createLiveChatController } from './views/live-chat.js';
 import { trackMenuButtonClick } from './analytics.js';
 
-const VIEWS = ['home', 'outlets', 'menu', 'bot', 'live', 'login', 'register', 'faq'];
+const VIEWS = ['home', 'outlets', 'menu', 'bot', 'live', 'login', 'register', 'faq', 'complaint'];
 
 let currentView = 'home';
 let navParams = {};
@@ -51,6 +52,8 @@ function getTitle(view, params = {}) {
       return 'Register';
     case 'faq':
       return 'FAQ';
+    case 'complaint':
+      return 'Order Issue / Complaint';
     default:
       return 'US Pizza';
   }
@@ -142,7 +145,7 @@ function finishAuthRedirect() {
 }
 
 function navigateBack() {
-  if (currentView === 'live' || currentView === 'bot') navigateTo('menu');
+  if (currentView === 'live' || currentView === 'bot' || currentView === 'complaint') navigateTo('menu');
   else if (currentView === 'menu') navigateTo('home');
   else if (currentView === 'outlets' || currentView === 'faq') navigateTo('home');
   else if (currentView === 'login' || currentView === 'register') navigateTo('home');
@@ -165,6 +168,19 @@ function navigateTo(view, options = {}) {
       },
     });
     botController.start(options.initialOption || null);
+    return;
+  }
+
+  if (view === 'complaint') {
+    showView('complaint', options);
+    renderComplaintFormView(document.getElementById('view-complaint'), {
+      guestMode: options.guest === true && !isAuthenticated(),
+      onSubmitted: (ticketId) => {
+        window.alert(`Complaint logged\n\nYour ticket #${ticketId} has been sent to our team.`);
+        navigateTo('menu');
+      },
+      onBack: () => navigateTo('menu'),
+    });
     return;
   }
 
@@ -269,6 +285,14 @@ function handleMenuOption(optionId) {
   if (optionId === 'other') {
     trackMenuButtonClick(item?.label || 'Other / Talk to Support');
     promptLiveSupportAccess();
+    return;
+  }
+
+  if (optionId === 'order_issue') {
+    trackMenuButtonClick(item?.label || 'Order Issue / Complaint');
+    navigateTo('complaint', {
+      guest: navParams.guest === true && !isAuthenticated(),
+    });
     return;
   }
 

@@ -47,7 +47,7 @@ router.post('/', handlePhotoUpload, async (req, res) => {
     const complaint = await complaintService.createComplaint(
       {
         ...data,
-        customer_contact: contact,
+        customer_contact: contact || data.customer_phone,
         description: data.message,
         attachment_urls: attachmentUrls,
         source: 'form',

@@ -18,7 +18,8 @@ export class CustomerSupportApi {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.success === false) {
-      throw new Error(data.message || `Request failed (${res.status})`);
+      const detail = data.errors?.length ? data.errors.join(' ') : data.message;
+      throw new Error(detail || `Request failed (${res.status})`);
     }
     return data;
   }
@@ -114,5 +115,19 @@ export class CustomerSupportApi {
     const data = await this.request('/api/chat/submit', { method: 'POST', body: formData });
     this.sessionId = null;
     return data;
+  }
+
+  async submitComplaintForm(payload, photos = []) {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, value);
+      }
+    });
+    photos.forEach((file, index) => {
+      formData.append('photos', file, file.name || `photo-${index + 1}.jpg`);
+    });
+
+    return this.request('/api/complaints', { method: 'POST', body: formData });
   }
 }
