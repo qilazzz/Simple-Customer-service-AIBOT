@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="theme-color" content="#c8102e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>US Pizza</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="portal-backdrop">
+      <div id="mobile-frame" class="mobile-frame" role="application" aria-label="US Pizza">
+        <header id="app-header" class="app-header">
+          <button id="header-back" type="button" class="header-back hidden" aria-label="Go back">←</button>
+          <h1 id="header-title" class="header-title">US Pizza</h1>
+          <div id="header-right" class="header-right">
+            <button id="auth-chip" type="button" class="auth-chip hidden">Login / Register</button>
+          </div>
+        </header>
+
+        <div id="view-home" class="app-view"></div>
+        <div id="view-outlets" class="app-view hidden"></div>
+        <div id="view-menu" class="app-view hidden"></div>
+        <div id="view-bot" class="app-view hidden"></div>
+        <div id="view-live" class="app-view hidden"></div>
+        <div id="view-login" class="app-view hidden"></div>
+        <div id="view-register" class="app-view hidden"></div>
+
+        <div id="fab-layer" class="fab-layer" aria-hidden="true">
+          <button id="support-fab" type="button" class="support-fab hidden" aria-label="Customer Service">
+            <img src="assets/customer-service-icon.png" alt="" width="56" height="56" draggable="false" />
+          </button>
+        </div>
+
+        <div id="guest-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="guest-modal-title">
+          <div class="modal-backdrop" data-close-modal></div>
+          <div class="modal-card">
+            <h2 id="guest-modal-title">Customer Support</h2>
+            <p id="guest-modal-desc">Sign in for faster support and saved details, or continue as a guest.</p>
+            <div class="modal-actions">
+              <button type="button" id="guest-login-btn" class="btn-outline">Log In</button>
+              <button type="button" id="guest-register-btn" class="btn-outline">Register</button>
+              <button type="button" id="guest-continue-btn" class="btn-primary">Continue as Guest</button>
+              <button type="button" class="btn-text" data-close-modal>Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

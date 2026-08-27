@@ -91,30 +91,37 @@
               <h1 class="main-content-title">Dashboard Overview</h1>
               <p class="main-content-subtitle">Monitor complaints, analytics, and live support</p>
             </div>
-            <div class="metric-row">
-              <div class="metric-chip clay-inset">
-                <span class="metric-label">Total Complaints</span>
-                <strong id="metric-total">—</strong>
-              </div>
-              <div class="metric-chip clay-inset">
-                <span class="metric-label">Pending</span>
-                <strong id="metric-pending-complaints">—</strong>
-              </div>
-              <div class="metric-chip clay-inset">
-                <span class="metric-label">In Progress</span>
-                <strong id="metric-in-progress-complaints">—</strong>
-              </div>
-            </div>
           </div>
         </header>
 
       <section id="tab-complaints" class="tab-panel is-active" aria-labelledby="tab-btn-complaints">
         <div class="admin-card clay-card">
-          <div class="panel-head panel-head-with-actions">
+          <div class="panel-head complaints-panel-head">
             <div class="panel-head-copy">
               <h2>Complaints Dashboard</h2>
               <p id="complaints-count-label">Loading...</p>
             </div>
+            <div class="complaints-metric-row" aria-label="Complaints summary">
+              <div class="metric-chip metric-chip-total">
+                <span class="metric-label">Total Complaints</span>
+                <strong id="metric-total">—</strong>
+              </div>
+              <div class="metric-chip metric-chip-pending">
+                <span class="metric-label">Pending</span>
+                <strong id="metric-pending-complaints">—</strong>
+              </div>
+              <div class="metric-chip metric-chip-progress">
+                <span class="metric-label">In Progress</span>
+                <strong id="metric-in-progress-complaints">—</strong>
+              </div>
+              <div class="metric-chip metric-chip-resolved">
+                <span class="metric-label">Resolved</span>
+                <strong id="metric-resolved-complaints">—</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="complaints-toolbar">
             <button
               id="category-menu-btn"
               type="button"
@@ -129,6 +136,15 @@
                 </svg>
               </span>
               <span id="category-filter-label">Category: All</span>
+            </button>
+            <button
+              id="complaints-refresh-btn"
+              type="button"
+              class="complaints-refresh-btn"
+              aria-label="Refresh complaints"
+              title="Refresh complaints"
+            >
+              <span class="complaints-refresh-icon" aria-hidden="true">🔄</span>
             </button>
           </div>
 
@@ -245,8 +261,30 @@
         <div class="live-chat-workspace clay-card">
           <aside class="live-chat-queue clay-inset">
             <div class="live-chat-queue-head">
-              <h2 id="live-chat-queue-title">Active Chats</h2>
-              <p id="live-chat-queue-summary">Loading queue...</p>
+              <div class="live-chat-queue-head-copy">
+                <h2 id="live-chat-queue-title">Active Chats</h2>
+                <p id="live-chat-queue-summary">Loading queue...</p>
+              </div>
+              <div class="live-chat-toolbar-actions" aria-label="Chat queue actions">
+                <button
+                  id="live-chat-refresh-btn"
+                  type="button"
+                  class="live-chat-icon-btn"
+                  aria-label="Refresh Queue"
+                  title="Refresh Queue"
+                >
+                  <span class="live-chat-icon-btn-symbol" aria-hidden="true">🔄</span>
+                </button>
+                <button
+                  id="live-chat-select-mode-btn"
+                  type="button"
+                  class="live-chat-select-mode-btn"
+                  aria-pressed="false"
+                  aria-label="Toggle select mode"
+                >
+                  Select
+                </button>
+              </div>
             </div>
 
             <div class="live-chat-subtabs" role="tablist" aria-label="Chat views">
@@ -286,11 +324,11 @@
             <div id="live-chat-bulk-toolbar" class="live-chat-bulk-toolbar hidden">
               <label class="live-chat-select-all">
                 <input id="live-chat-select-all" type="checkbox" />
-                <span>Select all</span>
+                <span>Select All</span>
               </label>
               <div class="live-chat-bulk-actions">
                 <button id="live-chat-delete-selected-btn" type="button" class="btn btn-clay-danger btn-sm">
-                  Delete Selected
+                  Delete Selected (0)
                 </button>
                 <button id="live-chat-delete-all-btn" type="button" class="btn btn-clay-danger btn-sm">
                   Delete All
@@ -382,6 +420,28 @@
       </div>
     </div>
 
+    <div id="live-chat-restore-modal" class="admin-modal hidden" role="dialog" aria-modal="true" aria-labelledby="live-chat-restore-title">
+      <div class="admin-modal-backdrop" data-close-live-chat-restore-modal></div>
+      <div class="admin-modal-panel clay-card live-chat-restore-modal-panel">
+        <div class="admin-modal-header">
+          <h2 id="live-chat-restore-title">Restore Chat</h2>
+          <button type="button" class="admin-modal-close" data-close-live-chat-restore-modal aria-label="Close">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+          <p id="live-chat-restore-message">Are you sure you want to restore this chat back to Active Chats?</p>
+          <p id="live-chat-restore-error" class="live-chat-restore-error hidden" role="alert"></p>
+        </div>
+        <div class="admin-modal-footer live-chat-restore-modal-footer">
+          <button id="live-chat-restore-cancel-btn" type="button" class="btn btn-clay-secondary" data-close-live-chat-restore-modal>
+            Cancel
+          </button>
+          <button id="live-chat-restore-confirm-btn" type="button" class="btn btn-clay-success">
+            Restore Chat
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div id="live-chat-delete-modal" class="admin-modal hidden" role="dialog" aria-modal="true" aria-labelledby="live-chat-delete-title">
       <div class="admin-modal-backdrop" data-close-live-chat-modal></div>
       <div class="admin-modal-panel clay-card live-chat-delete-modal-panel">
@@ -397,7 +457,7 @@
             Cancel
           </button>
           <button id="live-chat-delete-confirm-btn" type="button" class="btn btn-clay-danger">
-            Delete
+            Yes, Delete
           </button>
         </div>
       </div>

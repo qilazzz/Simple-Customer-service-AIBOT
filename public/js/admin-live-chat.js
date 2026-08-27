@@ -23,9 +23,14 @@
   const selectAllEl = document.getElementById('live-chat-select-all');
   const deleteSelectedBtn = document.getElementById('live-chat-delete-selected-btn');
   const deleteAllBtn = document.getElementById('live-chat-delete-all-btn');
+  const refreshBtn = document.getElementById('live-chat-refresh-btn');
+  const selectModeBtn = document.getElementById('live-chat-select-mode-btn');
   const deleteModalEl = document.getElementById('live-chat-delete-modal');
   const deleteMessageEl = document.getElementById('live-chat-delete-message');
   const deleteConfirmBtn = document.getElementById('live-chat-delete-confirm-btn');
+  const restoreModalEl = document.getElementById('live-chat-restore-modal');
+  const restoreConfirmBtn = document.getElementById('live-chat-restore-confirm-btn');
+  const restoreErrorEl = document.getElementById('live-chat-restore-error');
   const subtabButtons = document.querySelectorAll('.live-chat-subtab');
 
   if (!listEl) return;
@@ -50,8 +55,10 @@
   let lastWaitingCount = 0;
   let isTabActive = false;
   let pendingDeleteAction = null;
+  let pendingRestoreSessionId = null;
   let eventSource = null;
   let queueRefreshTimer = null;
+  let selectModeEnabled = false;
 
   function scheduleQueueRefresh(options = {}) {
     if (queueRefreshTimer) {
@@ -73,7 +80,8 @@
       payload.type === 'claimed' ||
       payload.type === 'resolved' ||
       payload.type === 'deleted' ||
-      payload.type === 'purged';
+      payload.type === 'purged' ||
+      payload.type === 'restored';
 
     if (!shouldRefresh) return;
 
@@ -87,8 +95,9 @@
     }
 
     if (
-      (payload.type === 'reopened' || (payload.type === 'message' && payload.sender === 'user')) &&
-      !isTabActive
+      payload.type === 'new_session' ||
+      ((payload.type === 'reopened' || (payload.type === 'message' && payload.sender === 'user')) &&
+        !isTabActive)
     ) {
       playNotificationSound();
     }
@@ -158,8 +167,8 @@
     }
   }
 
-  function supportsBulkActions() {
-    return currentView === 'resolved' || currentView === 'trash';
+  function isSelectModeEnabled() {
+    return selectModeEnabled;
   }
 
   function isPermanentDeleteContext() {
@@ -213,6 +222,65 @@
     }
   }
 
+  function updateSelectModeUi() {
+    if (selectModeBtn) {
+      selectModeBtn.classList.toggle('is-active', selectModeEnabled);
+      selectModeBtn.setAttribute('aria-pressed', selectModeEnabled ? 'true' : 'false');
+    }
+
+    if (bulkToolbarEl) {
+      bulkToolbarEl.classList.toggle('hidden', !selectModeEnabled);
+    }
+
+    updateBulkActionButtons();
+  }
+
+  function updateBulkActionButtons() {
+    if (deleteSelectedBtn) {
+      deleteSelectedBtn.textContent = `Delete Selected (${selectedIds.size})`;
+      deleteSelectedBtn.disabled = selectedIds.size === 0;
+    }
+
+    if (deleteAllBtn) {
+      deleteAllBtn.disabled = !liveChats.length;
+    }
+  }
+
+  function setSelectMode(enabled) {
+    selectModeEnabled = Boolean(enabled);
+
+    if (!selectModeEnabled) {
+      selectedIds.clear();
+      if (selectAllEl) {
+        selectAllEl.checked = false;
+        selectAllEl.indeterminate = false;
+      }
+    }
+
+    updateSelectModeUi();
+    renderQueue();
+  }
+
+  function toggleSelectMode() {
+    setSelectMode(!selectModeEnabled);
+  }
+
+  async function fetchChatQueue(options = {}) {
+    if (refreshBtn) {
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add('is-refreshing');
+    }
+
+    try {
+      await loadQueue(options);
+    } finally {
+      if (refreshBtn) {
+        refreshBtn.disabled = false;
+        refreshBtn.classList.remove('is-refreshing');
+      }
+    }
+  }
+
   function updateViewUi() {
     subtabButtons.forEach((button) => {
       const isActive = button.dataset.view === currentView;
@@ -224,25 +292,20 @@
       queueTitleEl.textContent = VIEW_LABELS[currentView] || VIEW_LABELS.active;
     }
 
-    if (bulkToolbarEl) {
-      bulkToolbarEl.classList.toggle('hidden', !supportsBulkActions());
-    }
-
     if (resolveBtn) {
       resolveBtn.classList.toggle('hidden', currentView !== 'active');
     }
 
-    if (selectAllEl) {
-      selectAllEl.checked = false;
-    }
-    selectedIds.clear();
+    setSelectMode(false);
   }
 
   function syncSelectAllState(filteredCount) {
-    if (!selectAllEl || !supportsBulkActions()) return;
+    if (!selectAllEl || !isSelectModeEnabled()) return;
     selectAllEl.checked = filteredCount > 0 && selectedIds.size === filteredCount;
     selectAllEl.indeterminate =
       selectedIds.size > 0 && selectedIds.size < filteredCount;
+
+    updateBulkActionButtons();
   }
 
   function renderQueue() {
@@ -263,7 +326,7 @@
 
     listEl.innerHTML = filtered
       .map((chat) => {
-        const bulkCheckbox = supportsBulkActions()
+        const bulkCheckbox = isSelectModeEnabled()
           ? `
               <label class="live-chat-list-checkbox">
                 <input
@@ -277,10 +340,25 @@
             `
           : '';
 
+        const restoreButton =
+          currentView === 'trash'
+            ? `
+              <button
+                type="button"
+                class="live-chat-item-restore"
+                data-restore-id="${chat.id}"
+                aria-label="Restore chat with ${escapeHtml(chat.customer_name)}"
+                title="Restore to Active Chats"
+              >
+                ↩️
+              </button>
+            `
+            : '';
+
         return `
-          <li class="live-chat-list-item">
+          <li class="live-chat-list-item${isSelectModeEnabled() ? ' is-select-mode' : ''}">
             ${bulkCheckbox}
-            <div class="live-chat-item-wrap">
+            <div class="live-chat-item-wrap${currentView === 'trash' ? ' has-side-actions' : ''}">
               <div
                 class="live-chat-item${selectedSessionId === chat.id ? ' is-selected' : ''}"
                 data-session-id="${chat.id}"
@@ -300,15 +378,18 @@
                   <time>${escapeHtml(formatListTime(chat.last_message_at || chat.updated_at))}</time>
                 </div>
               </div>
-              <button
-                type="button"
-                class="live-chat-item-trash"
-                data-trash-id="${chat.id}"
-                aria-label="Delete chat with ${escapeHtml(chat.customer_name)}"
-                title="${isPermanentDeleteContext() ? 'Permanently delete' : 'Move to trash'}"
-              >
-                🗑️
-              </button>
+              <div class="live-chat-item-side-actions">
+                <button
+                  type="button"
+                  class="live-chat-item-trash"
+                  data-trash-id="${chat.id}"
+                  aria-label="Delete chat with ${escapeHtml(chat.customer_name)}"
+                  title="${isPermanentDeleteContext() ? 'Permanently delete' : 'Move to trash'}"
+                >
+                  🗑️
+                </button>
+                ${restoreButton}
+              </div>
             </div>
           </li>
         `;
@@ -518,17 +599,30 @@
   }
 
   function getDeleteMessage(action) {
+    const count = action.ids.length;
+    const plural = count > 1;
+
     if (action.permanent) {
-      if (action.ids.length > 1) {
-        return 'Are you sure you want to permanently delete these chats?';
+      if (action.type === 'all') {
+        return 'Are you sure you want to delete all chats in the trash? This action will permanently delete them.';
       }
-      return 'Are you sure you want to permanently delete this chat?';
+
+      if (plural) {
+        return 'Are you sure you want to delete the selected chat(s)? This action will permanently delete them.';
+      }
+
+      return 'Are you sure you want to delete this chat? This action will permanently delete it.';
     }
 
-    if (action.ids.length > 1) {
-      return 'Are you sure you want to move these chats to the trash?';
+    if (action.type === 'all') {
+      return 'Are you sure you want to delete all chats in this view? This action will move them to the trash.';
     }
-    return 'Are you sure you want to move this chat to the trash?';
+
+    if (plural) {
+      return 'Are you sure you want to delete the selected chat(s)? This action will move them to the trash.';
+    }
+
+    return 'Are you sure you want to delete this chat? This action will move it to the trash.';
   }
 
   function openDeleteModal(action) {
@@ -553,30 +647,29 @@
     deleteConfirmBtn.disabled = true;
 
     try {
-      let endpoint;
-      let body = {};
+      if (action.type === 'all') {
+        const endpoint = action.permanent
+          ? '/api/admin/live-chats/purge-all'
+          : '/api/admin/live-chats/trash-all';
+        const body = action.permanent ? {} : { view: currentView };
 
-      if (action.permanent) {
-        if (action.type === 'all') {
-          endpoint = '/api/admin/live-chats/purge-all';
-        } else {
-          endpoint = '/api/admin/live-chats/purge';
-          body = { ids: action.ids };
-        }
-      } else if (action.type === 'all') {
-        endpoint = '/api/admin/live-chats/trash-all';
-        body = { view: currentView };
+        const res = await adminFetch(endpoint, {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
       } else {
-        endpoint = '/api/admin/live-chats/trash';
-        body = { ids: action.ids };
+        const res = await adminFetch('/api/admin/chats/batch-delete', {
+          method: 'POST',
+          body: JSON.stringify({
+            session_ids: action.ids,
+            permanent: action.permanent,
+          }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
       }
-
-      const res = await adminFetch(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
 
       closeDeleteModal();
       selectedIds.clear();
@@ -584,12 +677,13 @@
         selectAllEl.checked = false;
         selectAllEl.indeterminate = false;
       }
+      updateBulkActionButtons();
 
       if (selectedSessionId && action.ids.includes(selectedSessionId)) {
         clearSelection();
       }
 
-      await loadQueue({ preserveSelection: true });
+      await fetchChatQueue({ preserveSelection: true });
       startPolling();
     } catch (err) {
       alert(err.message || 'Could not complete deletion.');
@@ -633,13 +727,111 @@
     });
   }
 
+  function openRestoreModal(sessionId) {
+    pendingRestoreSessionId = Number(sessionId);
+    if (restoreErrorEl) {
+      restoreErrorEl.textContent = '';
+      restoreErrorEl.classList.add('hidden');
+    }
+    restoreModalEl?.classList.remove('hidden');
+    document.body.classList.add('admin-modal-open');
+  }
+
+  function closeRestoreModal() {
+    pendingRestoreSessionId = null;
+    if (restoreErrorEl) {
+      restoreErrorEl.textContent = '';
+      restoreErrorEl.classList.add('hidden');
+    }
+    restoreModalEl?.classList.add('hidden');
+    document.body.classList.remove('admin-modal-open');
+  }
+
+  function showRestoreError(message) {
+    if (!restoreErrorEl) return;
+    restoreErrorEl.textContent = message;
+    restoreErrorEl.classList.remove('hidden');
+  }
+
+  async function parseAdminJsonResponse(res) {
+    let data = {};
+    try {
+      data = await res.json();
+    } catch {
+      data = {};
+    }
+    return data;
+  }
+
+  async function executeRestoreAction() {
+    if (!pendingRestoreSessionId) return;
+
+    const sessionId = pendingRestoreSessionId;
+    restoreConfirmBtn.disabled = true;
+    if (restoreErrorEl) {
+      restoreErrorEl.textContent = '';
+      restoreErrorEl.classList.add('hidden');
+    }
+
+    try {
+      const res = await adminFetch(`/api/admin/live-chats/${sessionId}/restore`, {
+        method: 'POST',
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = await parseAdminJsonResponse(res);
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || `Restore failed (${res.status})`);
+      }
+
+      closeRestoreModal();
+      selectedIds.delete(sessionId);
+
+      if (selectedSessionId === sessionId) {
+        clearSelection();
+      }
+
+      if (currentView === 'trash') {
+        liveChats = liveChats.filter((chat) => chat.id !== sessionId);
+        renderQueue();
+      }
+
+      currentView = 'active';
+      subtabButtons.forEach((button) => {
+        const isActive = button.dataset.view === 'active';
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+
+      if (queueTitleEl) {
+        queueTitleEl.textContent = VIEW_LABELS.active;
+      }
+
+      if (resolveBtn) {
+        resolveBtn.classList.remove('hidden');
+      }
+
+      setSelectMode(false);
+      await fetchChatQueue({ preserveSelection: false });
+      await selectSession(sessionId);
+      startPolling();
+    } catch (err) {
+      showRestoreError(err.message || 'Could not restore chat session.');
+    } finally {
+      restoreConfirmBtn.disabled = false;
+    }
+  }
+
+  function requestRestore(sessionId) {
+    openRestoreModal(Number(sessionId));
+  }
+
   async function switchView(view) {
     if (view === currentView) return;
     currentView = view;
-    selectedIds.clear();
     clearSelection();
     updateViewUi();
-    await loadQueue({ preserveSelection: false });
+    await fetchChatQueue({ preserveSelection: false });
     startPolling();
   }
 
@@ -658,6 +850,14 @@
   }
 
   listEl.addEventListener('click', (event) => {
+    const restoreButton = event.target.closest('[data-restore-id]');
+    if (restoreButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      requestRestore(Number(restoreButton.dataset.restoreId));
+      return;
+    }
+
     const trashButton = event.target.closest('[data-trash-id]');
     if (trashButton) {
       event.preventDefault();
@@ -719,12 +919,23 @@
     });
   });
 
+  refreshBtn?.addEventListener('click', () => {
+    fetchChatQueue({ preserveSelection: true });
+  });
+
+  selectModeBtn?.addEventListener('click', toggleSelectMode);
+
   deleteSelectedBtn?.addEventListener('click', requestSelectedDelete);
   deleteAllBtn?.addEventListener('click', requestDeleteAll);
   deleteConfirmBtn?.addEventListener('click', executeDeleteAction);
+  restoreConfirmBtn?.addEventListener('click', executeRestoreAction);
 
   document.querySelectorAll('[data-close-live-chat-modal]').forEach((element) => {
     element.addEventListener('click', closeDeleteModal);
+  });
+
+  document.querySelectorAll('[data-close-live-chat-restore-modal]').forEach((element) => {
+    element.addEventListener('click', closeRestoreModal);
   });
 
   searchEl?.addEventListener('input', () => {
@@ -750,12 +961,13 @@
   });
 
   updateViewUi();
+  updateSelectModeUi();
 
   window.AdminLiveChat = {
     activate() {
       isTabActive = true;
       connectLiveChatEvents();
-      loadQueue({ preserveSelection: true });
+      fetchChatQueue({ preserveSelection: true });
       startPolling();
     },
     deactivate() {
@@ -764,8 +976,9 @@
       disconnectLiveChatEvents();
     },
     refreshBadge() {
-      loadQueue({ preserveSelection: false });
+      fetchChatQueue({ preserveSelection: false });
     },
+    fetchChatQueue,
   };
 
   connectLiveChatEvents();

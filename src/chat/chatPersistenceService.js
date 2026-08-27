@@ -3,6 +3,7 @@ const { createSession, getSession } = require('../complaints/chatSessionStore');
 const liveChatService = require('../liveChat/liveChatService');
 
 const ACTIVE_STATUSES = ['WAITING_FOR_AGENT', 'AGENT_CONNECTED'];
+const CUSTOMER_OPEN_STATUSES = ['WAITING_FOR_FIRST_MESSAGE', ...ACTIVE_STATUSES];
 
 function mapMemoryRoleToSenderType(role) {
   if (role === 'customer') return 'user';
@@ -47,7 +48,7 @@ async function getActiveSessionRow(userId) {
 
   const liveRow = await db('live_chat_sessions')
     .where({ user_id: userId })
-    .whereIn('status', ACTIVE_STATUSES)
+    .whereIn('status', CUSTOMER_OPEN_STATUSES)
     .orderBy('updated_at', 'desc')
     .first();
 
@@ -232,7 +233,7 @@ async function buildHistoryPayload(userId) {
     refreshedRow.live_session_id &&
     (await db('live_chat_sessions')
       .where({ id: refreshedRow.live_session_id })
-      .whereIn('status', ACTIVE_STATUSES)
+      .whereIn('status', CUSTOMER_OPEN_STATUSES)
       .first());
 
   let waitingForAgent = false;

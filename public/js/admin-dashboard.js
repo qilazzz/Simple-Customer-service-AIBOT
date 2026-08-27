@@ -5,6 +5,7 @@ const PAGE_SIZE = 10;
 const metricTotal = document.getElementById('metric-total');
 const metricPendingComplaints = document.getElementById('metric-pending-complaints');
 const metricInProgressComplaints = document.getElementById('metric-in-progress-complaints');
+const metricResolvedComplaints = document.getElementById('metric-resolved-complaints');
 
 const adminApp = document.getElementById('admin-app');
 const adminSidebar = document.getElementById('sidebar');
@@ -66,6 +67,7 @@ const categoryMenuBackdrop = document.getElementById('category-menu-backdrop');
 const categoryMenuClose = document.getElementById('category-menu-close');
 const categoryMenuList = document.getElementById('category-menu-list');
 const categoryFilterLabel = document.getElementById('category-filter-label');
+const complaintsRefreshBtn = document.getElementById('complaints-refresh-btn');
 
 let allComplaints = [];
 let allOutlets = [];
@@ -321,10 +323,14 @@ function formatOutletLabel(outletName) {
 function updateHeaderMetrics() {
   const pendingComplaints = allComplaints.filter((item) => item.status === 'pending').length;
   const inProgressComplaints = allComplaints.filter((item) => item.status === 'in_progress').length;
+  const resolvedComplaints = allComplaints.filter((item) => item.status === 'resolved').length;
 
   metricTotal.textContent = allComplaints.length;
   metricPendingComplaints.textContent = pendingComplaints;
   metricInProgressComplaints.textContent = inProgressComplaints;
+  if (metricResolvedComplaints) {
+    metricResolvedComplaints.textContent = resolvedComplaints;
+  }
 }
 
 function renderPagination({
@@ -711,6 +717,24 @@ async function loadComplaints() {
     updateHeaderMetrics();
   }
 }
+
+async function fetchComplaints() {
+  if (complaintsRefreshBtn) {
+    complaintsRefreshBtn.disabled = true;
+    complaintsRefreshBtn.classList.add('is-refreshing');
+  }
+
+  try {
+    await loadComplaints();
+  } finally {
+    if (complaintsRefreshBtn) {
+      complaintsRefreshBtn.disabled = false;
+      complaintsRefreshBtn.classList.remove('is-refreshing');
+    }
+  }
+}
+
+complaintsRefreshBtn?.addEventListener('click', fetchComplaints);
 
 loadCategoryOptions();
 initSidebarState();

@@ -485,23 +485,143 @@ body.admin-clay {
   gap: 0.75rem;
 }
 
+.complaints-panel-head {
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.complaints-metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.complaints-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
 .metric-chip {
-  min-width: 130px;
-  padding: 0.65rem 0.9rem;
+  min-width: 108px;
+  padding: 0.45rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  border-left-width: 3px;
+  box-shadow: none;
+}
+
+.complaints-metric-row .metric-chip {
+  min-width: 96px;
+  padding: 0.4rem 0.6rem;
 }
 
 .metric-label {
   display: block;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--admin-muted);
-  margin-bottom: 0.15rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin-bottom: 0.1rem;
 }
 
 .metric-chip strong {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 800;
-  color: var(--admin-brand);
+  line-height: 1.1;
+}
+
+.complaints-metric-row .metric-label {
+  font-size: 0.58rem;
+}
+
+.complaints-metric-row .metric-chip strong {
+  font-size: 0.95rem;
+}
+
+.metric-chip-total {
+  background: #F8FAFC;
+  border-left-color: #475569;
+  border-color: rgba(71, 85, 105, 0.14);
+}
+
+.metric-chip-total .metric-label {
+  color: #64748B;
+}
+
+.metric-chip-total strong {
+  color: #1E293B;
+}
+
+.metric-chip-pending {
+  background: #FFF7ED;
+  border-left-color: #F97316;
+  border-color: rgba(249, 115, 22, 0.16);
+}
+
+.metric-chip-pending .metric-label {
+  color: #C2410C;
+}
+
+.metric-chip-pending strong {
+  color: #EA580C;
+}
+
+.metric-chip-progress {
+  background: #EFF6FF;
+  border-left-color: #3B82F6;
+  border-color: rgba(59, 130, 246, 0.16);
+}
+
+.metric-chip-progress .metric-label {
+  color: #1D4ED8;
+}
+
+.metric-chip-progress strong {
+  color: #2563EB;
+}
+
+.metric-chip-resolved {
+  background: #F0FDF4;
+  border-left-color: #22C55E;
+  border-color: rgba(34, 197, 94, 0.16);
+}
+
+.metric-chip-resolved .metric-label {
+  color: #166534;
+}
+
+.metric-chip-resolved strong {
+  color: #15803D;
+}
+
+@media (max-width: 900px) {
+  .complaints-panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .complaints-metric-row {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .complaints-metric-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .complaints-metric-row .metric-chip {
+    min-width: 0;
+  }
 }
 
 .admin-header-actions {
@@ -659,6 +779,60 @@ body.admin-clay {
   align-items: center;
   justify-content: center;
   color: var(--admin-brand);
+}
+
+.complaints-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  border: 1px solid rgba(211, 47, 47, 0.12);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--admin-text);
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 4px 4px 12px rgba(163, 177, 198, 0.22), -3px -3px 10px rgba(255, 255, 255, 0.9);
+  transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.complaints-refresh-btn:hover {
+  color: var(--admin-brand);
+  border-color: rgba(211, 47, 47, 0.35);
+  box-shadow: 4px 4px 14px rgba(211, 47, 47, 0.16), -3px -3px 10px rgba(255, 255, 255, 0.95);
+}
+
+.complaints-refresh-btn:active {
+  transform: translateY(1px);
+}
+
+.complaints-refresh-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.complaints-refresh-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.complaints-refresh-btn.is-refreshing .complaints-refresh-icon {
+  animation: complaints-refresh-spin 0.8s linear infinite;
+}
+
+@keyframes complaints-refresh-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .category-menu-backdrop {
@@ -860,6 +1034,16 @@ body.category-menu-open {
 
 .btn-clay-danger:hover {
   background: #B71C1C;
+}
+
+.btn-clay-success {
+  background: #15803D;
+  color: #fff;
+  box-shadow: 4px 4px 12px rgba(21, 128, 61, 0.28), -2px -2px 8px rgba(255, 255, 255, 0.75);
+}
+
+.btn-clay-success:hover {
+  background: #166534;
 }
 
 .btn-sm {
@@ -1461,9 +1645,25 @@ body.admin-modal-open {
   width: min(460px, 100%);
 }
 
-.live-chat-delete-modal-footer {
+.live-chat-restore-modal-panel {
+  width: min(460px, 100%);
+}
+
+.live-chat-delete-modal-footer,
+.live-chat-restore-modal-footer {
   border-top: 1px solid var(--admin-border);
   padding-top: 1rem;
+}
+
+.live-chat-restore-error {
+  margin: 0.75rem 0 0;
+  color: #C62828;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.live-chat-restore-error.hidden {
+  display: none;
 }
 
 .click-details-loading,
@@ -1523,6 +1723,18 @@ body.admin-modal-open {
   padding: 1rem;
 }
 
+.live-chat-queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.live-chat-queue-head-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .live-chat-queue-head h2 {
   margin: 0 0 0.25rem;
   font-size: 1rem;
@@ -1532,6 +1744,74 @@ body.admin-modal-open {
   margin: 0;
   color: var(--admin-muted);
   font-size: 0.82rem;
+}
+
+.live-chat-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.live-chat-icon-btn,
+.live-chat-select-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--admin-text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.live-chat-icon-btn {
+  padding: 6px 10px;
+  min-width: 2rem;
+}
+
+.live-chat-icon-btn:hover,
+.live-chat-select-mode-btn:hover {
+  border-color: var(--admin-brand);
+  color: var(--admin-brand);
+}
+
+.live-chat-icon-btn:focus-visible,
+.live-chat-select-mode-btn:focus-visible {
+  outline: 2px solid var(--admin-brand);
+  outline-offset: 2px;
+}
+
+.live-chat-icon-btn-symbol {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.live-chat-select-mode-btn.is-active,
+.live-chat-select-mode-btn[aria-pressed='true'] {
+  border-color: var(--admin-brand);
+  background: var(--admin-brand-hover-bg);
+  color: var(--admin-brand);
+}
+
+.live-chat-icon-btn.is-refreshing .live-chat-icon-btn-symbol {
+  animation: live-chat-spin 0.8s linear infinite;
+}
+
+@keyframes live-chat-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .live-chat-subtabs {
@@ -1646,8 +1926,12 @@ body.admin-modal-open {
   gap: 0.45rem;
 }
 
-.live-chat-list-checkbox {
+.live-chat-list-item.is-select-mode .live-chat-list-checkbox {
   display: flex;
+}
+
+.live-chat-list-checkbox {
+  display: none;
   align-items: flex-start;
   padding-top: 0.85rem;
 }
@@ -1655,7 +1939,12 @@ body.admin-modal-open {
 .live-chat-list-checkbox input {
   width: 1rem;
   height: 1rem;
+  accent-color: var(--admin-brand);
   cursor: pointer;
+}
+
+.live-chat-bulk-toolbar .btn-clay-danger {
+  box-shadow: 0 0 0 1px rgba(198, 40, 40, 0.12);
 }
 
 .live-chat-item-wrap {
@@ -1701,10 +1990,23 @@ body.admin-modal-open {
   gap: 0.35rem;
 }
 
-.live-chat-item-trash {
+.live-chat-item-wrap.has-side-actions .live-chat-item {
+  padding-right: 2.55rem;
+}
+
+.live-chat-item-side-actions {
   position: absolute;
-  top: 0.55rem;
-  right: 0.45rem;
+  top: 0.45rem;
+  right: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
+  z-index: 1;
+}
+
+.live-chat-item-trash,
+.live-chat-item-restore {
   border: none;
   background: transparent;
   cursor: pointer;
@@ -1714,12 +2016,16 @@ body.admin-modal-open {
   border-radius: 8px;
   opacity: 0.55;
   transition: opacity 0.15s ease, background 0.15s ease;
-  z-index: 1;
 }
 
 .live-chat-item-trash:hover {
   opacity: 1;
   background: rgba(198, 40, 40, 0.08);
+}
+
+.live-chat-item-restore:hover {
+  opacity: 1;
+  background: rgba(34, 197, 94, 0.12);
 }
 
 .live-chat-unread {

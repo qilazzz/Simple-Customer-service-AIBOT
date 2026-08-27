@@ -248,6 +248,34 @@ router.post('/live-chats/:id/resolve', requireAdmin, async (req, res) => {
   }
 });
 
+router.post('/live-chats/:id/restore', requireAdmin, async (req, res) => {
+  const sessionId = Number(req.params.id);
+
+  if (!sessionId) {
+    return res.status(400).json({
+      success: false,
+      message: 'A valid session id is required.',
+    });
+  }
+
+  try {
+    const liveChatService = require('../../liveChat/liveChatService');
+    const session = await liveChatService.restoreLiveChatSession(sessionId);
+    return res.json({
+      success: true,
+      message: 'Chat restored successfully',
+      session,
+    });
+  } catch (err) {
+    console.error('Live chat restore error:', err.message);
+    const status = err.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: err.message || 'Could not restore chat session.',
+    });
+  }
+});
+
 router.post('/live-chats/trash', requireAdmin, async (req, res) => {
   const { ids } = req.body;
 
@@ -310,6 +338,66 @@ router.post('/live-chats/purge-all', requireAdmin, async (req, res) => {
     return res.status(status).json({
       success: false,
       message: err.message || 'Could not permanently delete chats.',
+    });
+  }
+});
+
+router.post('/chats/batch-delete', requireAdmin, async (req, res) => {
+  const { session_ids: sessionIds, permanent = false } = req.body;
+
+  if (!Array.isArray(sessionIds) || !sessionIds.length) {
+    return res.status(400).json({
+      success: false,
+      message: 'session_ids array is required.',
+    });
+  }
+
+  try {
+    const liveChatService = require('../../liveChat/liveChatService');
+
+    if (permanent) {
+      const purgedCount = await liveChatService.permanentlyDeleteLiveChats(sessionIds);
+      return res.json({ success: true, purged_count: purgedCount });
+    }
+
+    const deletedCount = await liveChatService.moveLiveChatsToTrash(sessionIds);
+    return res.json({ success: true, deleted_count: deletedCount });
+  } catch (err) {
+    console.error('Live chat batch-delete error:', err.message);
+    const status = err.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: err.message || 'Could not delete selected chats.',
+    });
+  }
+});
+
+router.post('/chats/restore', requireAdmin, async (req, res) => {
+  const sessionId = Number(
+    req.body.sessionId ?? req.body.session_id ?? req.body.chat_id,
+  );
+
+  if (!sessionId) {
+    return res.status(400).json({
+      success: false,
+      message: 'sessionId is required.',
+    });
+  }
+
+  try {
+    const liveChatService = require('../../liveChat/liveChatService');
+    const session = await liveChatService.restoreLiveChatSession(sessionId);
+    return res.json({
+      success: true,
+      message: 'Chat restored successfully',
+      session,
+    });
+  } catch (err) {
+    console.error('Live chat restore error:', err.message);
+    const status = err.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: err.message || 'Could not restore chat session.',
     });
   }
 });

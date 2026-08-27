@@ -1,0 +1,44 @@
+# Render Blueprint — two services from one repo (admin+API vs user portal)
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # Backend API + Admin dashboard (public/admin/)
+  - type: web
+    name: us-pizza-api-admin
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run migrate
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+
+  # Customer user portal (static SPA — separate URL from admin)
+  - type: web
+    name: us-pizza-user-portal
+    runtime: static
+    rootDir: us-pizza-user-portal
+    staticPublishPath: .
+    buildCommand: echo "No build step"
+    envVars:
+      - key: SKIP_INSTALL_DEPS
+        value: "true"

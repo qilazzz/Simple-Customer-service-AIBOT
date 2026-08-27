@@ -3,14 +3,21 @@ const { notifyLiveChatUpdate } = require('./liveChatHub');
 const { getSession } = require('../complaints/chatSessionStore');
 
 const ACTIVE_STATUSES = ['WAITING_FOR_AGENT', 'AGENT_CONNECTED'];
+const CUSTOMER_OPEN_STATUSES = ['WAITING_FOR_FIRST_MESSAGE', ...ACTIVE_STATUSES];
 const VIEW_STATUSES = {
   active: ACTIVE_STATUSES,
   resolved: ['RESOLVED'],
   trash: ['DELETED'],
 };
 
+function historyHasUserMessage(history = []) {
+  return history.some((entry) => mapSender(entry.role) === 'user');
+}
+
 function formatStatusLabel(status) {
   switch (status) {
+    case 'WAITING_FOR_FIRST_MESSAGE':
+      return 'Awaiting First Message';
     case 'WAITING_FOR_AGENT':
       return 'Waiting for Agent';
     case 'AGENT_CONNECTED':
@@ -102,6 +109,15 @@ async function buildLiveChatListQuery(statuses, filters = {}) {
     });
   }
 
+  if (filters.requireUserMessage) {
+    query = query.whereExists(function requireUserMessage() {
+      this.select(db.raw('1'))
+        .from('live_chat_messages as m')
+        .whereRaw('m.live_session_id = s.id')
+        .where('m.sender', 'user');
+    });
+  }
+
   const rows = await query.orderBy('s.updated_at', 'desc');
 
   return rows.map((row) =>
@@ -115,7 +131,10 @@ async function buildLiveChatListQuery(statuses, filters = {}) {
 
 async function listLiveChatsByView(view = 'active', filters = {}) {
   const statuses = VIEW_STATUSES[view] || VIEW_STATUSES.active;
-  return buildLiveChatListQuery(statuses, filters);
+  return buildLiveChatListQuery(statuses, {
+    ...filters,
+    requireUserMessage: view === 'active',
+  });
 }
 
 async function listActiveLiveChats(filters = {}) {
@@ -170,7 +189,7 @@ function getLastMessageId(messages = []) {
 async function getLiveChatByChatSessionId(chatSessionId) {
   const row = await db('live_chat_sessions')
     .where({ chat_session_id: chatSessionId })
-    .whereIn('status', ACTIVE_STATUSES)
+    .whereIn('status', CUSTOMER_OPEN_STATUSES)
     .first();
   if (!row) return null;
   return getLiveChatSessionById(row.id);
@@ -197,9 +216,8 @@ async function reopenLiveChatSession(liveSessionId, { incrementUnread = false } 
     return session;
   }
 
-  const previousStatus = session.status;
   const updateData = {
-    status: 'WAITING_FOR_AGENT',
+    status: 'WAITING_FOR_FIRST_MESSAGE',
     assigned_agent: null,
     updated_at: db.fn.now(),
   };
@@ -217,7 +235,7 @@ async function reopenLiveChatSession(liveSessionId, { incrementUnread = false } 
     chatSession.flow = 'live_agent';
     chatSession.stage = 'live_agent';
     chatSession.liveSessionId = liveSessionId;
-    chatSession.liveStatus = 'WAITING_FOR_AGENT';
+    chatSession.liveStatus = 'WAITING_FOR_FIRST_MESSAGE';
   }
 
   try {
@@ -231,19 +249,18 @@ async function reopenLiveChatSession(liveSessionId, { incrementUnread = false } 
     // Persistence is best-effort.
   }
 
-  notifyLiveChatUpdate({
-    type: 'reopened',
-    liveSessionId,
-    chatSessionId: session.chat_session_id,
-    previousStatus,
-  });
-
   return db('live_chat_sessions').where({ id: liveSessionId }).first();
 }
 
 async function countWaitingChats() {
-  const [result] = await db('live_chat_sessions')
+  const [result] = await db('live_chat_sessions as s')
     .where({ status: 'WAITING_FOR_AGENT' })
+    .whereExists(function requireUserMessage() {
+      this.select(db.raw('1'))
+        .from('live_chat_messages as m')
+        .whereRaw('m.live_session_id = s.id')
+        .where('m.sender', 'user');
+    })
     .count('* as count');
   return Number(result.count) || 0;
 }
@@ -260,7 +277,7 @@ async function countWaitingChats() {
 async function createOrGetLiveChatSession(params) {
   const existing = await db('live_chat_sessions')
     .where({ chat_session_id: params.chatSessionId })
-    .whereIn('status', ACTIVE_STATUSES)
+    .whereIn('status', CUSTOMER_OPEN_STATUSES)
     .first();
 
   if (existing) {
@@ -279,11 +296,13 @@ async function createOrGetLiveChatSession(params) {
   }
 
   const profile = await resolveProfile(params.userId);
+  const hasUserMessage = historyHasUserMessage(params.history);
+  const initialStatus = hasUserMessage ? 'WAITING_FOR_AGENT' : 'WAITING_FOR_FIRST_MESSAGE';
 
   const [liveSessionId] = await db('live_chat_sessions').insert({
     chat_session_id: params.chatSessionId,
     user_id: params.userId || null,
-    status: 'WAITING_FOR_AGENT',
+    status: initialStatus,
     customer_name: params.customerName || profile?.name || null,
     customer_contact:
       params.customerContact ||
@@ -310,10 +329,14 @@ async function createOrGetLiveChatSession(params) {
         last_message: last.text,
         last_message_at: db.fn.now(),
         updated_at: db.fn.now(),
+        ...(hasUserMessage ? { unread_count: 1 } : {}),
       });
   }
 
-  notifyLiveChatUpdate({ type: 'new_session', liveSessionId });
+  if (hasUserMessage) {
+    notifyLiveChatUpdate({ type: 'new_session', liveSessionId });
+  }
+
   return getLiveChatSessionById(liveSessionId);
 }
 
@@ -325,7 +348,14 @@ async function addLiveChatMessage(liveSessionId, sender, messageText, { incremen
     throw error;
   }
 
+  if (sender === 'admin' && session.status === 'WAITING_FOR_FIRST_MESSAGE') {
+    const error = new Error('This session is not yet active.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   let reopened = false;
+  let activated = false;
 
   if (['RESOLVED', 'DELETED'].includes(session.status)) {
     if (sender !== 'user') {
@@ -334,7 +364,7 @@ async function addLiveChatMessage(liveSessionId, sender, messageText, { incremen
       throw error;
     }
 
-    session = await reopenLiveChatSession(liveSessionId, { incrementUnread });
+    session = await reopenLiveChatSession(liveSessionId, { incrementUnread: false });
     reopened = true;
   }
 
@@ -350,11 +380,18 @@ async function addLiveChatMessage(liveSessionId, sender, messageText, { incremen
     updated_at: db.fn.now(),
   };
 
-  if (incrementUnread && sender === 'user' && !reopened) {
-    updateData.unread_count = (Number(session.unread_count) || 0) + 1;
+  if (sender === 'user' && session.status === 'WAITING_FOR_FIRST_MESSAGE') {
+    updateData.status = 'WAITING_FOR_AGENT';
+    activated = true;
   }
 
-  if (sender === 'admin' && session.status === 'WAITING_FOR_AGENT') {
+  if (incrementUnread && sender === 'user' && !reopened) {
+    updateData.unread_count = (Number(session.unread_count) || 0) + 1;
+  } else if (activated && sender === 'user') {
+    updateData.unread_count = 1;
+  }
+
+  if (sender === 'admin' && (session.status === 'WAITING_FOR_AGENT' || updateData.status === 'WAITING_FOR_AGENT')) {
     updateData.status = 'AGENT_CONNECTED';
   }
 
@@ -362,7 +399,6 @@ async function addLiveChatMessage(liveSessionId, sender, messageText, { incremen
 
   try {
     const chatPersistence = require('../chat/chatPersistenceService');
-    const nextStatus = updateData.status || session.status;
     await chatPersistence.appendPersistedMessage(session.chat_session_id, sender, messageText, {
       source_live_message_id: messageId,
     });
@@ -375,13 +411,21 @@ async function addLiveChatMessage(liveSessionId, sender, messageText, { incremen
     // Persistence is best-effort; live chat still works in memory.
   }
 
-  notifyLiveChatUpdate({
-    type: 'message',
-    liveSessionId,
-    sender,
-    chatSessionId: session.chat_session_id,
-    reopened,
-  });
+  if (activated) {
+    notifyLiveChatUpdate({
+      type: 'new_session',
+      liveSessionId,
+      chatSessionId: session.chat_session_id,
+    });
+  } else {
+    notifyLiveChatUpdate({
+      type: reopened ? 'reopened' : 'message',
+      liveSessionId,
+      sender,
+      chatSessionId: session.chat_session_id,
+      reopened,
+    });
+  }
 
   return {
     id: messageId,
@@ -405,6 +449,12 @@ async function claimLiveChatSession(id, agentName = 'admin') {
 
   if (session.status === 'RESOLVED' || session.status === 'DELETED') {
     const error = new Error('This session is closed.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (session.status === 'WAITING_FOR_FIRST_MESSAGE') {
+    const error = new Error('This session is not yet active.');
     error.statusCode = 400;
     throw error;
   }
@@ -511,6 +561,7 @@ async function getLiveChatUpdatesForCustomer(chatSessionId, sinceId = 0) {
     status: row.status,
     live_agent: !['RESOLVED', 'DELETED'].includes(row.status),
     resolved: row.status === 'RESOLVED' || row.status === 'DELETED',
+    waiting_for_agent: row.status === 'WAITING_FOR_AGENT',
     last_message_id: getLastMessageId(formatted),
     messages: formatted,
   };
@@ -602,8 +653,60 @@ async function permanentlyDeleteAllInTrash() {
   return permanentlyDeleteLiveChats(ids);
 }
 
+async function restoreLiveChatSession(liveSessionId) {
+  const session = await db('live_chat_sessions').where({ id: liveSessionId }).first();
+  if (!session) {
+    const error = new Error('Live chat session not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (session.status !== 'DELETED') {
+    const error = new Error('Only deleted chat sessions can be restored.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const userMessage = await db('live_chat_messages')
+    .where({ live_session_id: liveSessionId, sender: 'user' })
+    .first();
+
+  const newStatus = userMessage ? 'WAITING_FOR_AGENT' : 'WAITING_FOR_FIRST_MESSAGE';
+
+  await db('live_chat_sessions').where({ id: liveSessionId }).update({
+    status: newStatus,
+    assigned_agent: null,
+    unread_count: userMessage ? 1 : 0,
+    updated_at: db.fn.now(),
+  });
+
+  const chatSession = getSession(session.chat_session_id);
+  if (chatSession) {
+    chatSession.flow = 'live_agent';
+    chatSession.stage = 'live_agent';
+    chatSession.liveSessionId = liveSessionId;
+    chatSession.liveStatus = newStatus;
+  }
+
+  try {
+    const chatPersistence = require('../chat/chatPersistenceService');
+    await chatPersistence.updatePersistedSession(session.chat_session_id, {
+      flow: 'live_agent',
+      stage: 'live_agent',
+      live_session_id: liveSessionId,
+    });
+  } catch {
+    // Persistence is best-effort.
+  }
+
+  notifyLiveChatUpdate({ type: 'restored', liveSessionId });
+
+  return getLiveChatSessionById(liveSessionId);
+}
+
 module.exports = {
   ACTIVE_STATUSES,
+  CUSTOMER_OPEN_STATUSES,
   VIEW_STATUSES,
   listActiveLiveChats,
   listLiveChatsByView,
@@ -624,4 +727,5 @@ module.exports = {
   moveAllLiveChatsToTrash,
   permanentlyDeleteLiveChats,
   permanentlyDeleteAllInTrash,
+  restoreLiveChatSession,
 };
