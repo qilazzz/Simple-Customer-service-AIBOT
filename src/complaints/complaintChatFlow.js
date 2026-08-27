@@ -1,9 +1,130 @@
 /**
  * Step-by-step complaint conversation flow for US Pizza Malaysia.
- * Simplified: outlet → description → optional photo → submit.
+ * Guest: contact → outlet → description → optional photo → submit.
+ * Signed-in: outlet → description → optional photo → submit.
  */
 
-/** @typedef {'outlet'|'description'|'photo'|'ready'} ComplaintStage */
+/** @typedef {'contact'|'outlet'|'description'|'photo'|'ready'} ComplaintStage */
+
+/**
+ * @param {Object} collected
+ */
+function hasGuestContactComplete(collected) {
+  return Boolean(
+    collected.customer_name?.trim() &&
+      collected.customer_email?.trim() &&
+      collected.customer_phone?.trim(),
+  );
+}
+
+/**
+ * @param {Object} collected
+ * @param {Object} session
+ */
+function needsGuestContact(collected, session) {
+  if (!session?.isGuest) return false;
+  return !hasGuestContactComplete(collected);
+}
+
+/**
+ * @param {Object} collected
+ * @returns {'name'|'email'|'phone'|'done'}
+ */
+function getContactStep(collected) {
+  if (!collected.customer_name?.trim()) return 'name';
+  if (!collected.customer_email?.trim()) return 'email';
+  if (!collected.customer_phone?.trim()) return 'phone';
+  return 'done';
+}
+
+/**
+ * @param {string} text
+ */
+function validateEmail(text) {
+  const trimmed = text.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
+}
+
+/**
+ * @param {string} text
+ */
+function validatePhone(text) {
+  const digits = text.replace(/\D/g, '');
+  if (digits.length < 9 || digits.length > 15) return null;
+  return text.trim();
+}
+
+/**
+ * @param {string} text
+ */
+function validateName(text) {
+  const trimmed = text.trim();
+  return trimmed.length >= 2 ? trimmed : null;
+}
+
+/**
+ * @param {Object} collected
+ * @param {{ name?: string, email?: string, phone?: string }} details
+ * @returns {{ collected: Object, errors: string[] }}
+ */
+function applyGuestDetails(collected, details) {
+  const next = { ...collected };
+  const errors = [];
+
+  const name = validateName(details.name || '');
+  const email = validateEmail(details.email || '');
+  const phone = validatePhone(details.phone || '');
+
+  if (!name) errors.push('Please enter your full name (at least 2 characters).');
+  if (!email) errors.push('Please enter a valid email address.');
+  if (!phone) errors.push('Please enter a valid phone number (e.g. 0123456789).');
+
+  if (!errors.length) {
+    next.customer_name = name;
+    next.customer_email = email;
+    next.customer_phone = phone;
+    next.customer_contact = email;
+  }
+
+  return { collected: next, errors };
+}
+
+/**
+ * @param {Object} collected
+ * @param {string} userMessage
+ * @returns {{ collected: Object, error: string|null, done: boolean, contact_step: string }}
+ */
+function processContactInput(collected, userMessage) {
+  const next = { ...collected };
+  const step = getContactStep(collected);
+  const trimmed = userMessage.trim();
+  let error = null;
+
+  if (step === 'name') {
+    const name = validateName(trimmed);
+    if (!name) error = 'Please enter your full name (at least 2 characters).';
+    else next.customer_name = name;
+  } else if (step === 'email') {
+    const email = validateEmail(trimmed);
+    if (!email) error = 'Please enter a valid email address (e.g. you@email.com).';
+    else {
+      next.customer_email = email;
+      next.customer_contact = email;
+    }
+  } else if (step === 'phone') {
+    const phone = validatePhone(trimmed);
+    if (!phone) error = 'Please enter a valid phone number (e.g. 0123456789).';
+    else next.customer_phone = phone;
+  }
+
+  const contactStep = getContactStep(next);
+  return {
+    collected: next,
+    error,
+    done: contactStep === 'done',
+    contact_step: contactStep,
+  };
+}
 
 /**
  * @param {Object} collected
@@ -11,6 +132,7 @@
  * @returns {ComplaintStage}
  */
 function getCurrentStage(collected, session) {
+  if (needsGuestContact(collected, session)) return 'contact';
   if (!collected.outlet_name) return 'outlet';
   if (!collected.description) return 'description';
   if (!session.photoPromptShown) return 'photo';
@@ -57,9 +179,24 @@ function formatOutletOptions(outlets) {
 /**
  * @param {ComplaintStage} stage
  * @param {Object} [collected]
+ * @param {'name'|'email'|'phone'|'done'} [contactStep]
  */
-function getStageReply(stage, collected = {}) {
+function getStageReply(stage, collected = {}, contactStep = getContactStep(collected)) {
   switch (stage) {
+    case 'contact':
+      if (contactStep === 'name') {
+        return (
+          'Before we log your complaint, please share your contact details so our team can follow up.\n\n' +
+          'What is your **full name**?'
+        );
+      }
+      if (contactStep === 'email') {
+        return `Thank you, **${collected.customer_name}**. What is your **email address**?`;
+      }
+      if (contactStep === 'phone') {
+        return 'Got it. Lastly, what is your **phone number**? (e.g. 0123456789)';
+      }
+      return 'Thank you. Now let\'s continue with your complaint.';
     case 'outlet':
       return (
         "I'm really sorry to hear you've had a frustrating experience with US Pizza Malaysia. " +
@@ -127,4 +264,12 @@ module.exports = {
   isCancelCommand,
   isComplaintTrigger,
   buildTicketConfirmation,
+  needsGuestContact,
+  hasGuestContactComplete,
+  getContactStep,
+  applyGuestDetails,
+  processContactInput,
+  validateEmail,
+  validatePhone,
+  validateName,
 };

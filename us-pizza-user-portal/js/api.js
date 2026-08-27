@@ -60,6 +60,21 @@ export class CustomerSupportApi {
     });
   }
 
+  async submitGuestDetails({ name, email, phone }) {
+    if (!this.sessionId) throw new Error('No active session');
+
+    return this.request('/api/chat/guest-details', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: this.sessionId,
+        name,
+        email,
+        phone,
+      }),
+    });
+  }
+
   async getLiveUpdates(sinceId = 0) {
     if (!this.sessionId) throw new Error('No active session');
 

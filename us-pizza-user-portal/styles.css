@@ -910,6 +910,68 @@ body {
   border-top: 1px solid var(--border-soft);
 }
 
+.guest-contact-bar {
+  padding: 0.85rem;
+  background: #fff;
+  border-top: 1px solid var(--border-soft);
+}
+
+.guest-contact-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.guest-contact-desc {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.guest-contact-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.guest-field {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.guest-field input {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  font-weight: 400;
+  color: inherit;
+}
+
+.guest-contact-error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #b42318;
+}
+
+.guest-contact-submit {
+  margin-top: 0.15rem;
+  width: 100%;
+}
+
+.outlet-empty-note {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.outlet-browse-btn {
+  width: 100%;
+  margin-bottom: 0.35rem;
+}
+
 .outlet-title {
   margin: 0 0 0.5rem;
   font-size: 0.82rem;

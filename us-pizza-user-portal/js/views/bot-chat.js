@@ -1,6 +1,7 @@
 import { BOT_MENU } from '../config.js';
-import { getCustomerUserId } from '../auth.js';
+import { getCustomerUserId, isAuthenticated } from '../auth.js';
 import { CustomerSupportApi } from '../api.js';
+import { OutletsApi } from '../auth-api.js';
 import { API_BASE_URL } from '../config.js';
 import { trackMenuButtonClick } from '../analytics.js';
 
@@ -12,8 +13,10 @@ function formatReply(text) {
     .trim();
 }
 
-export function createBotChatController(container, { onOpenOutlets, onTicketSubmitted } = {}) {
+export function createBotChatController(container, { guestMode = false, onOpenOutlets, onTicketSubmitted } = {}) {
   const api = new CustomerSupportApi();
+  const outletsApi = new OutletsApi();
+  const isGuest = guestMode || !isAuthenticated();
 
   let sessionId = null;
   let stage = 'menu';
@@ -21,6 +24,8 @@ export function createBotChatController(container, { onOpenOutlets, onTicketSubm
   let showMenu = true;
   let menuOptions = [...BOT_MENU];
   let outletOptions = [];
+  let needsGuestContact = false;
+  let savingGuestDetails = false;
   let readyToSubmit = false;
   let photos = [];
   let sending = false;
@@ -31,6 +36,7 @@ export function createBotChatController(container, { onOpenOutlets, onTicketSubm
       <div id="bot-messages" class="chat-messages"></div>
       <div id="bot-loading" class="view-loading">Starting chat…</div>
       <div id="bot-menu-footer" class="menu-footer hidden"></div>
+      <div id="bot-guest-bar" class="guest-contact-bar hidden"></div>
       <div id="bot-outlet-bar" class="outlet-bar hidden"></div>
       <div id="bot-photo-bar" class="photo-bar hidden">
         <label class="photo-add-btn">
@@ -54,6 +60,7 @@ export function createBotChatController(container, { onOpenOutlets, onTicketSubm
   const messagesEl = container.querySelector('#bot-messages');
   const loadingEl = container.querySelector('#bot-loading');
   const menuFooterEl = container.querySelector('#bot-menu-footer');
+  const guestBarEl = container.querySelector('#bot-guest-bar');
   const outletBarEl = container.querySelector('#bot-outlet-bar');
   const photoBarEl = container.querySelector('#bot-photo-bar');
   const photoInput = container.querySelector('#bot-photo-input');
@@ -109,14 +116,108 @@ export function createBotChatController(container, { onOpenOutlets, onTicketSubm
     });
   }
 
-  function renderOutletBar() {
+  async function ensureOutletOptions() {
+    if (outletOptions.length) return outletOptions;
+    try {
+      const data = await outletsApi.listOutlets();
+      outletOptions = (data.outlets || []).map((outlet) => ({
+        id: outlet.id || outlet.outlet_id,
+        outlet_id: outlet.outlet_id || outlet.id,
+        label: outlet.name || outlet.outlet_name,
+        name: outlet.name || outlet.outlet_name,
+        state: outlet.state || null,
+        city: outlet.city || null,
+      }));
+    } catch {
+      // Keep empty — user can still type outlet name.
+    }
+    return outletOptions;
+  }
+
+  function renderGuestBar() {
+    const showGuestForm =
+      isGuest && needsGuestContact && flow === 'complaint' && stage === 'contact';
+
+    if (!showGuestForm) {
+      guestBarEl.classList.add('hidden');
+      return;
+    }
+
+    guestBarEl.classList.remove('hidden');
+    guestBarEl.innerHTML = `
+      <p class="guest-contact-title">Your contact details</p>
+      <p class="guest-contact-desc">We need this so our team can follow up on your complaint.</p>
+      <form id="bot-guest-form" class="guest-contact-form">
+        <label class="guest-field">
+          <span>Full name</span>
+          <input id="bot-guest-name" type="text" autocomplete="name" maxlength="120" required />
+        </label>
+        <label class="guest-field">
+          <span>Email</span>
+          <input id="bot-guest-email" type="email" autocomplete="email" maxlength="200" required />
+        </label>
+        <label class="guest-field">
+          <span>Phone number</span>
+          <input id="bot-guest-phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="20" required />
+        </label>
+        <p id="bot-guest-error" class="guest-contact-error hidden"></p>
+        <button id="bot-guest-submit" type="submit" class="btn-primary guest-contact-submit">Continue</button>
+      </form>
+    `;
+
+    const guestForm = guestBarEl.querySelector('#bot-guest-form');
+    const guestErrorEl = guestBarEl.querySelector('#bot-guest-error');
+    const guestSubmitBtn = guestBarEl.querySelector('#bot-guest-submit');
+
+    guestForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!sessionId || savingGuestDetails) return;
+
+      const name = guestBarEl.querySelector('#bot-guest-name')?.value.trim();
+      const email = guestBarEl.querySelector('#bot-guest-email')?.value.trim();
+      const phone = guestBarEl.querySelector('#bot-guest-phone')?.value.trim();
+
+      savingGuestDetails = true;
+      guestSubmitBtn.disabled = true;
+      guestSubmitBtn.textContent = 'Saving…';
+      guestErrorEl.classList.add('hidden');
+
+      try {
+        const data = await api.submitGuestDetails({ name, email, phone });
+        append('Contact details submitted', 'user');
+        applyResponse(data);
+      } catch (err) {
+        guestErrorEl.textContent = err.message || 'Could not save your details.';
+        guestErrorEl.classList.remove('hidden');
+      } finally {
+        savingGuestDetails = false;
+        guestSubmitBtn.disabled = false;
+        guestSubmitBtn.textContent = 'Continue';
+      }
+    });
+  }
+
+  async function renderOutletBar() {
     const inComplaint = flow === 'complaint';
-    if (stage !== 'outlet' || !inComplaint || !outletOptions.length) {
+    if (stage !== 'outlet' || !inComplaint) {
       outletBarEl.classList.add('hidden');
       return;
     }
 
+    await ensureOutletOptions();
+
     outletBarEl.classList.remove('hidden');
+
+    if (!outletOptions.length) {
+      outletBarEl.innerHTML = `
+        <p class="outlet-title">No outlets loaded yet</p>
+        <p class="outlet-empty-note">Type the outlet name in the chat, or browse all locations.</p>
+        <button type="button" id="bot-open-outlets" class="btn-outline outlet-browse-btn">Find Outlets</button>
+      `;
+      outletBarEl.querySelector('#bot-open-outlets')?.addEventListener('click', () => onOpenOutlets?.());
+      return;
+    }
+
     outletBarEl.innerHTML = `
       <p class="outlet-title">Select an outlet:</p>
       <input id="bot-outlet-search" type="search" placeholder="Search outlets..." class="outlet-search" />
@@ -175,7 +276,7 @@ export function createBotChatController(container, { onOpenOutlets, onTicketSubm
       .join('');
   }
 
-  function applyResponse(data, userLabel) {
+  async function applyResponse(data, userLabel) {
     if (userLabel) append(userLabel, 'user');
     if (data.reply) append(data.reply, 'ai');
     stage = data.stage || stage;
@@ -184,14 +285,18 @@ export function createBotChatController(container, { onOpenOutlets, onTicketSubm
     if (data.menu_options?.length) {
       menuOptions = data.menu_options.filter((item) => item.id !== 'other');
     }
-    if (data.outlet_options?.length) outletOptions = data.outlet_options;
+    if (data.outlet_options?.length) {
+      outletOptions = data.outlet_options;
+    }
+    needsGuestContact = Boolean(data.needs_guest_contact);
     readyToSubmit = Boolean(data.ready_to_submit);
 
     submitBtn.classList.toggle('hidden', !readyToSubmit || flow !== 'complaint');
     submitBtn.disabled = submitting;
 
     renderMenuFooter();
-    renderOutletBar();
+    renderGuestBar();
+    await renderOutletBar();
     renderPhotoBar();
   }
 

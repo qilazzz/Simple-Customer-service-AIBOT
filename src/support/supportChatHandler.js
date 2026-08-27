@@ -1,4 +1,10 @@
-const { getStageReply, formatOutletOptions } = require('../complaints/complaintChatFlow');
+const {
+  getStageReply,
+  formatOutletOptions,
+  needsGuestContact,
+  getContactStep,
+  applyGuestDetails,
+} = require('../complaints/complaintChatFlow');
 const { processComplaintChatTurn } = require('../complaints/aiComplaintAnalyzer');
 const outletService = require('../outlets/outletService');
 const {
@@ -108,8 +114,26 @@ function joinReply(intro, body) {
 
 async function startComplaintFlow(session, aiReply = null) {
   session.flow = 'complaint';
-  session.stage = 'outlet';
   session.collected = session.collected || {};
+
+  if (needsGuestContact(session.collected, session)) {
+    const contactStep = getContactStep(session.collected);
+    session.stage = 'contact';
+    return {
+      reply: joinReply(aiReply, getStageReply('contact', session.collected, contactStep)),
+      stage: 'contact',
+      flow: 'complaint',
+      show_menu: false,
+      ready_to_submit: false,
+      needs_guest_contact: true,
+      contact_step: contactStep,
+      menu_options: SUPPORT_MENU,
+      menu_bar_title: 'Main menu',
+      outlet_options: [],
+    };
+  }
+
+  session.stage = 'outlet';
   const outlets = await outletService.listOutletsForPicker();
 
   return {
@@ -121,6 +145,7 @@ async function startComplaintFlow(session, aiReply = null) {
     menu_options: SUPPORT_MENU,
     menu_bar_title: 'Main menu',
     outlet_options: formatOutletOptions(outlets),
+    needs_guest_contact: false,
   };
 }
 

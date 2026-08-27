@@ -157,6 +157,7 @@ function navigateTo(view, options = {}) {
     const container = document.getElementById('view-bot');
     container.innerHTML = '';
     botController = createBotChatController(container, {
+      guestMode: options.guest === true && !isAuthenticated(),
       onOpenOutlets: () => navigateTo('outlets'),
       onTicketSubmitted: (ticketId) => {
         window.alert(`Complaint logged\n\nYour ticket #${ticketId} has been sent to our team.`);
@@ -271,7 +272,10 @@ function handleMenuOption(optionId) {
     return;
   }
 
-  navigateTo('bot', { initialOption: item?.label });
+  navigateTo('bot', {
+    initialOption: item?.label,
+    guest: navParams.guest === true && !isAuthenticated(),
+  });
 }
 
 function updateAuthChip() {

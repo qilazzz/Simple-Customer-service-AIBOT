@@ -9,7 +9,8 @@ const {
   updateCollected,
   destroySession,
 } = require('../../complaints/chatSessionStore');
-const { buildTicketConfirmation } = require('../../complaints/complaintChatFlow');
+const { buildTicketConfirmation, applyGuestDetails, needsGuestContact, getStageReply, formatOutletOptions } = require('../../complaints/complaintChatFlow');
+const outletService = require('../../outlets/outletService');
 const { processSupportChatTurn, startLiveAgentFlow, SUPPORT_MENU } = require('../../support/supportChatHandler');
 const { getMenuWelcomeText, cleanBotReply } = require('../../support/supportMenu');
 const { handlePhotoUpload } = require('../middleware/upload');
@@ -23,13 +24,19 @@ function isDirectSupportRequest(req) {
 
 function attachCustomerProfile(session, customer) {
   if (!customer) return;
+  session.isGuest = false;
   session.userId = customer.user_id;
   session.collected = {
     ...(session.collected || {}),
     customer_name: customer.name,
     customer_contact: customer.email || customer.phone_number,
     customer_email: customer.email,
+    customer_phone: customer.phone_number || null,
   };
+}
+
+function markGuestSession(session, customer) {
+  session.isGuest = !customer;
 }
 
 function formatDirectSupportPayload(sessionId, session, result, customer, extra = {}) {
@@ -195,6 +202,7 @@ router.post('/session', optionalCustomer, async (req, res) => {
 
     const sessionId = createSession();
     const session = getSession(sessionId);
+    markGuestSession(session, req.customer);
     attachCustomerProfile(session, req.customer);
 
     try {
@@ -224,6 +232,7 @@ router.post('/session', optionalCustomer, async (req, res) => {
 
   const sessionId = createSession();
   const session = getSession(sessionId);
+  markGuestSession(session, req.customer);
 
   if (req.customer) {
     session.userId = req.customer.user_id;
@@ -310,13 +319,9 @@ router.post('/message', optionalCustomer, async (req, res) => {
   }
 
   if (req.customer) {
-    session.userId = req.customer.user_id;
-    session.collected = {
-      ...(session.collected || {}),
-      customer_name: req.customer.name,
-      customer_contact: req.customer.email || req.customer.phone_number,
-      customer_email: req.customer.email,
-    };
+    attachCustomerProfile(session, req.customer);
+  } else {
+    markGuestSession(session, null);
   }
 
   if (session.directSupport && session.flow !== 'live_agent') {
@@ -425,6 +430,8 @@ router.post('/message', optionalCustomer, async (req, res) => {
       menu_options: result.menu_options || SUPPORT_MENU,
       menu_bar_title: result.menu_bar_title,
       outlet_options: result.outlet_options || null,
+      needs_guest_contact: Boolean(result.needs_guest_contact),
+      contact_step: result.contact_step || null,
       preview: result.preview,
       live_agent: Boolean(result.live_agent),
       live_session_id: result.liveSessionId || session.liveSessionId || null,
@@ -438,6 +445,72 @@ router.post('/message', optionalCustomer, async (req, res) => {
       message: 'Our support assistant is temporarily unavailable. Please try again in a moment.',
     });
   }
+});
+
+router.post('/guest-details', optionalCustomer, async (req, res) => {
+  const { sessionId, name, email, phone } = req.body;
+
+  if (!sessionId) {
+    return res.status(400).json({ success: false, message: 'sessionId is required.' });
+  }
+
+  const session = getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ success: false, message: 'Chat session expired. Please start again.' });
+  }
+
+  if (req.customer) {
+    attachCustomerProfile(session, req.customer);
+  } else {
+    markGuestSession(session, null);
+  }
+
+  if (!session.isGuest) {
+    return res.status(400).json({
+      success: false,
+      message: 'Guest contact details are only required for guest sessions.',
+    });
+  }
+
+  const { collected, errors } = applyGuestDetails(session.collected || {}, { name, email, phone });
+  if (errors.length) {
+    return res.status(400).json({
+      success: false,
+      message: errors.join(' '),
+    });
+  }
+
+  session.collected = collected;
+  updateCollected(sessionId, collected);
+  session.flow = session.flow || 'complaint';
+  session.stage = 'outlet';
+
+  const outlets = await outletService.listOutletsForPicker();
+  const reply = cleanBotReply(getStageReply('outlet'));
+
+  appendMessage(sessionId, 'ai', reply);
+  chatPersistence.persistMemoryMessage(sessionId, 'ai', reply).catch(() => {});
+
+  chatPersistence
+    .updatePersistedSession(sessionId, {
+      flow: session.flow,
+      stage: session.stage,
+      collected: session.collected,
+    })
+    .catch(() => {});
+
+  return res.json({
+    success: true,
+    reply,
+    collected: session.collected,
+    stage: 'outlet',
+    flow: session.flow,
+    show_menu: false,
+    ready_to_submit: false,
+    needs_guest_contact: false,
+    outlet_options: formatOutletOptions(outlets),
+    menu_options: SUPPORT_MENU,
+  });
 });
 
 router.post('/submit', handlePhotoUpload, async (req, res) => {
@@ -460,11 +533,13 @@ router.post('/submit', handlePhotoUpload, async (req, res) => {
   const collected = { ...session.collected };
   const missing = [];
 
+  if (needsGuestContact(collected, session)) missing.push('contact details (name, email, phone)');
   if (!collected.outlet_name) missing.push('outlet');
   if (!collected.description) missing.push('complaint details');
 
   if (missing.length) {
     const stageMap = {
+      'contact details (name, email, phone)': 'contact',
       outlet: 'outlet',
       'complaint details': 'description',
     };
@@ -484,15 +559,16 @@ router.post('/submit', handlePhotoUpload, async (req, res) => {
 
     const attachmentUrls = files.map((f) => `/uploads/complaints/${f.filename}`);
     const contact =
+      collected.customer_email ||
       collected.customer_contact ||
       `app-user-${sessionId.slice(0, 8)}@uspizza.local`;
 
     const complaint = await complaintService.createComplaint(
       {
         customer_name: collected.customer_name || 'Chat Customer',
-        customer_contact: contact,
-        customer_email: contact.includes('@') ? contact : 'chatbot@uspizza.local',
-        customer_phone: contact.includes('@') ? null : contact,
+        customer_contact: collected.customer_phone || contact,
+        customer_email: collected.customer_email || (contact.includes('@') ? contact : 'chatbot@uspizza.local'),
+        customer_phone: collected.customer_phone || (contact.includes('@') ? null : contact),
         order_id: collected.order_id || null,
         outlet_name: collected.outlet_name,
         outlet_id: collected.outlet_id || null,

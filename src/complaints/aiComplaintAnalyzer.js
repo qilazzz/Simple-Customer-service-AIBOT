@@ -9,6 +9,9 @@ const {
   isComplaintTrigger,
   isSubmitCommand,
   isPhotoSkip,
+  needsGuestContact,
+  getContactStep,
+  processContactInput,
 } = require('./complaintChatFlow');
 const outletService = require('../outlets/outletService');
 
@@ -97,6 +100,35 @@ async function processComplaintChatTurn(session, userMessage) {
   const conversationText = session.messages.map((m) => `${m.role}: ${m.text}`).join('\n');
   const stageBefore = getCurrentStage(session.collected, session);
 
+  if (stageBefore === 'contact') {
+    const contactResult = processContactInput(session.collected || {}, userMessage);
+    session.collected = contactResult.collected;
+
+    if (!contactResult.done) {
+      const reply =
+        contactResult.error ||
+        getStageReply('contact', session.collected, contactResult.contact_step);
+      return {
+        reply,
+        collected: session.collected,
+        ready_to_submit: false,
+        stage: 'contact',
+        needs_guest_contact: true,
+        contact_step: contactResult.contact_step,
+        outlet_options: [],
+      };
+    }
+
+    return {
+      reply: getStageReply('outlet'),
+      collected: session.collected,
+      ready_to_submit: false,
+      stage: 'outlet',
+      needs_guest_contact: false,
+      outlet_options: formatOutletOptions(outlets),
+    };
+  }
+
   let extracted = {};
   try {
     extracted = await extractComplaintEntities(
@@ -148,8 +180,13 @@ async function processComplaintChatTurn(session, userMessage) {
   let reply = getStageReply(finalStage, session.collected);
 
   if (stageBefore === 'outlet' && !session.collected.outlet_name) {
-    reply =
-      "I couldn't match that to one of our outlets. Please tap an outlet from the list below, or type the exact outlet name.";
+    if (!outlets.length) {
+      reply =
+        'Our outlet list is being updated. Please type the **exact outlet name** you visited, or open **Find Outlets** from the menu to browse locations.';
+    } else {
+      reply =
+        "I couldn't match that to one of our outlets. Please tap an outlet from the list below, or type the exact outlet name.";
+    }
   }
 
   const ready_to_submit = finalStage === 'photo' || finalStage === 'ready';
@@ -159,6 +196,8 @@ async function processComplaintChatTurn(session, userMessage) {
     collected: session.collected,
     ready_to_submit,
     stage: finalStage,
+    needs_guest_contact: needsGuestContact(session.collected, session),
+    contact_step: getContactStep(session.collected),
     outlet_options: formatOutletOptions(outlets),
     preview: {
       sentiment: extracted.sentiment,
