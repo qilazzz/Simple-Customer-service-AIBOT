@@ -12,6 +12,7 @@ const {
   needsGuestContact,
   getContactStep,
   processContactInput,
+  validateOrderId,
 } = require('./complaintChatFlow');
 const outletService = require('../outlets/outletService');
 
@@ -21,7 +22,8 @@ const SUPPORT_PERSONA = `You are a helpful and empathetic Customer Care Support 
 
 When a customer logs a complaint, gather:
 1. Which outlet they ordered from or visited
-2. What went wrong (description)
+2. Their order ID or receipt number
+3. What went wrong (description)
 
 Be empathetic and concise.`;
 
@@ -161,9 +163,19 @@ async function processComplaintChatTurn(session, userMessage) {
     }
   }
 
+  if (stageBefore === 'order_id' && !collected.order_id && trimmed.length >= 2 && !isCommand) {
+    const orderId = validateOrderId(trimmed);
+    if (orderId) collected.order_id = orderId;
+  }
+
   if (stageBefore === 'description' && !collected.description && trimmed.length >= 5 && !isCommand) {
     collected.description = trimmed;
-  } else if (!collected.description && extracted.description && stageBefore !== 'outlet') {
+  } else if (
+    !collected.description &&
+    extracted.description &&
+    stageBefore !== 'outlet' &&
+    stageBefore !== 'order_id'
+  ) {
     collected.description = extracted.description.trim();
   }
 
@@ -189,6 +201,11 @@ async function processComplaintChatTurn(session, userMessage) {
     }
   }
 
+  if (stageBefore === 'order_id' && !session.collected.order_id) {
+    reply =
+      'Please enter a valid **Order ID** or receipt number (at least 2 characters). You can find this on your receipt or order confirmation.';
+  }
+
   const ready_to_submit = finalStage === 'photo' || finalStage === 'ready';
 
   return {
@@ -198,7 +215,7 @@ async function processComplaintChatTurn(session, userMessage) {
     stage: finalStage,
     needs_guest_contact: needsGuestContact(session.collected, session),
     contact_step: getContactStep(session.collected),
-    outlet_options: formatOutletOptions(outlets),
+    outlet_options: finalStage === 'outlet' ? formatOutletOptions(outlets) : [],
     preview: {
       sentiment: extracted.sentiment,
       priority: extracted.priority,

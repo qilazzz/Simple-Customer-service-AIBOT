@@ -535,12 +535,14 @@ router.post('/submit', handlePhotoUpload, async (req, res) => {
 
   if (needsGuestContact(collected, session)) missing.push('contact details (name, email, phone)');
   if (!collected.outlet_name) missing.push('outlet');
+  if (!collected.order_id) missing.push('order ID');
   if (!collected.description) missing.push('complaint details');
 
   if (missing.length) {
     const stageMap = {
       'contact details (name, email, phone)': 'contact',
       outlet: 'outlet',
+      'order ID': 'order_id',
       'complaint details': 'description',
     };
     return res.status(400).json({

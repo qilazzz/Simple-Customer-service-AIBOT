@@ -38,6 +38,7 @@ export function createBotChatController(container, { guestMode = false, onOpenOu
       <div id="bot-menu-footer" class="menu-footer hidden"></div>
       <div id="bot-guest-bar" class="guest-contact-bar hidden"></div>
       <div id="bot-outlet-bar" class="outlet-bar hidden"></div>
+      <div id="bot-order-id-bar" class="order-id-bar hidden"></div>
       <div id="bot-photo-bar" class="photo-bar hidden">
         <label class="photo-add-btn">
           📎 Add photo
@@ -62,6 +63,7 @@ export function createBotChatController(container, { guestMode = false, onOpenOu
   const menuFooterEl = container.querySelector('#bot-menu-footer');
   const guestBarEl = container.querySelector('#bot-guest-bar');
   const outletBarEl = container.querySelector('#bot-outlet-bar');
+  const orderIdBarEl = container.querySelector('#bot-order-id-bar');
   const photoBarEl = container.querySelector('#bot-photo-bar');
   const photoInput = container.querySelector('#bot-photo-input');
   const photoPreview = container.querySelector('#bot-photo-preview');
@@ -260,6 +262,38 @@ export function createBotChatController(container, { guestMode = false, onOpenOu
     paintOutlets();
   }
 
+  function renderOrderIdBar() {
+    const showOrderId = flow === 'complaint' && stage === 'order_id';
+
+    if (!showOrderId) {
+      orderIdBarEl.classList.add('hidden');
+      return;
+    }
+
+    orderIdBarEl.classList.remove('hidden');
+    orderIdBarEl.innerHTML = `
+      <p class="order-id-title">Order ID / Receipt number</p>
+      <p class="order-id-desc">Find this on your receipt, app order history, or delivery confirmation.</p>
+      <form id="bot-order-id-form" class="order-id-form">
+        <input id="bot-order-id-input" type="text" placeholder="e.g. ORD-12345 or receipt number" autocomplete="off" maxlength="100" required />
+        <button id="bot-order-id-submit" type="submit" class="btn-primary order-id-submit">Continue</button>
+      </form>
+    `;
+
+    const orderForm = orderIdBarEl.querySelector('#bot-order-id-form');
+    const orderInput = orderIdBarEl.querySelector('#bot-order-id-input');
+    const orderSubmitBtn = orderIdBarEl.querySelector('#bot-order-id-submit');
+
+    orderForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const orderId = orderInput?.value.trim();
+      if (!orderId || sending) return;
+      orderSubmitBtn.disabled = true;
+      await dispatchMessage(orderId);
+      orderSubmitBtn.disabled = false;
+    });
+  }
+
   function renderPhotoBar() {
     const inComplaint = flow === 'complaint';
     const showPhoto = stage === 'photo' || stage === 'ready';
@@ -297,6 +331,7 @@ export function createBotChatController(container, { guestMode = false, onOpenOu
     renderMenuFooter();
     renderGuestBar();
     await renderOutletBar();
+    renderOrderIdBar();
     renderPhotoBar();
   }
 

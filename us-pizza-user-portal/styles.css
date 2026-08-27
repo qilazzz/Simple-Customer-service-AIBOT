@@ -972,6 +972,40 @@ body {
   margin-bottom: 0.35rem;
 }
 
+.order-id-bar {
+  padding: 0.85rem;
+  background: #fff;
+  border-top: 1px solid var(--border-soft);
+}
+
+.order-id-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.order-id-desc {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.order-id-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.order-id-form input {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+}
+
+.order-id-submit {
+  width: 100%;
+}
+
 .outlet-title {
   margin: 0 0 0.5rem;
   font-size: 0.82rem;

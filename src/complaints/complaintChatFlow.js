@@ -1,10 +1,10 @@
 /**
  * Step-by-step complaint conversation flow for US Pizza Malaysia.
- * Guest: contact → outlet → description → optional photo → submit.
- * Signed-in: outlet → description → optional photo → submit.
+ * Guest: contact → outlet → order_id → description → optional photo → submit.
+ * Signed-in: outlet → order_id → description → optional photo → submit.
  */
 
-/** @typedef {'contact'|'outlet'|'description'|'photo'|'ready'} ComplaintStage */
+/** @typedef {'contact'|'outlet'|'order_id'|'description'|'photo'|'ready'} ComplaintStage */
 
 /**
  * @param {Object} collected
@@ -127,6 +127,16 @@ function processContactInput(collected, userMessage) {
 }
 
 /**
+ * @param {string} text
+ */
+function validateOrderId(text) {
+  const trimmed = text.trim();
+  if (trimmed.length < 2 || trimmed.length > 100) return null;
+  if (!/^[A-Za-z0-9#\-_/ ]+$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+/**
  * @param {Object} collected
  * @param {Object} session
  * @returns {ComplaintStage}
@@ -134,6 +144,7 @@ function processContactInput(collected, userMessage) {
 function getCurrentStage(collected, session) {
   if (needsGuestContact(collected, session)) return 'contact';
   if (!collected.outlet_name) return 'outlet';
+  if (!collected.order_id) return 'order_id';
   if (!collected.description) return 'description';
   if (!session.photoPromptShown) return 'photo';
   return 'ready';
@@ -202,9 +213,14 @@ function getStageReply(stage, collected = {}, contactStep = getContactStep(colle
         "I'm really sorry to hear you've had a frustrating experience with US Pizza Malaysia. " +
         'Which US Pizza outlet did you order from or visit? Tap an outlet below or type to search.'
       );
-    case 'description':
+    case 'order_id':
       return (
         `Thank you. I've noted **${collected.outlet_name || 'your outlet'}**. ` +
+        'Please share your **Order ID** or receipt number so we can look into this.'
+      );
+    case 'description':
+      return (
+        `Thank you. I've noted order **${collected.order_id || 'ID'}**. ` +
         "Could you briefly tell me what went wrong with your order or visit?"
       );
     case 'photo':
@@ -272,4 +288,5 @@ module.exports = {
   validateEmail,
   validatePhone,
   validateName,
+  validateOrderId,
 };
