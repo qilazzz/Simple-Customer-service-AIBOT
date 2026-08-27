@@ -27,6 +27,8 @@ services:
         sync: false
       - key: DB_NAME
         sync: false
+      - key: DB_SSL
+        sync: false
       - key: ADMIN_PASSWORD
         sync: false
       - key: CORS_ORIGIN
