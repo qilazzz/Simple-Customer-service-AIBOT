@@ -45,9 +45,24 @@ function parseMarkdown(text) {
     .replace(/\n/g, '<br>');
 }
 
-function formatAiSummary(summary) {
-  const text = String(summary || '').trim();
-  return text || 'Summary unavailable';
+const SUMMARY_UNAVAILABLE = 'Summary unavailable';
+
+function resolveAiSummary(complaint) {
+  const raw =
+    complaint?.ai_summary ??
+    complaint?.aiSummary ??
+    '';
+
+  const text = String(raw).trim();
+  const isPlaceholder =
+    !text ||
+    text.toLowerCase() === SUMMARY_UNAVAILABLE.toLowerCase();
+
+  if (isPlaceholder) {
+    return { text: SUMMARY_UNAVAILABLE, available: false };
+  }
+
+  return { text, available: true };
 }
 
 function formatSentimentLabel(sentiment) {
@@ -167,7 +182,7 @@ function setPageTitle(ticketNumber) {
 function renderTicket(complaint) {
   const ticketNumber = formatTicketNumber(complaint.id);
   const customer = getCustomerFields(complaint);
-  const aiSummary = formatAiSummary(complaint.ai_summary);
+  const { text: aiSummary, available: aiSummaryAvailable } = resolveAiSummary(complaint);
   const sentimentLabel = formatSentimentLabel(complaint.sentiment);
   const sentimentClass = String(complaint.sentiment || 'neutral').toLowerCase();
   const photos = getPhotoUrls(complaint);
@@ -215,7 +230,20 @@ function renderTicket(complaint) {
           <h2 class="ticket-card-title">AI Summary & Sentiment</h2>
           <div class="ai-callout">
             <p class="ai-callout-label">✨ AI Summary</p>
-            <p class="ai-summary-text">${escapeHtml(aiSummary)}</p>
+            <p
+              id="ai-summary-text"
+              class="ai-summary-text${aiSummaryAvailable ? '' : ' is-unavailable'}"
+            >${escapeHtml(aiSummary)}</p>
+          </div>
+          <div class="ai-summary-actions">
+            <button
+              type="button"
+              id="use-ai-summary-btn"
+              class="ai-copy-reply-btn"
+              ${aiSummaryAvailable ? '' : 'disabled'}
+            >
+              Copy to Reply Box
+            </button>
           </div>
           <div class="ai-sentiment-row">
             <span class="ticket-card-title-sm" style="margin:0">Sentiment</span>
@@ -285,8 +313,23 @@ function renderTicket(complaint) {
   document.getElementById('save-status').addEventListener('click', saveStatus);
   document.getElementById('reply-form').addEventListener('submit', sendReply);
   document.getElementById('open-email-client-btn')?.addEventListener('click', openEmailClient);
+  document.getElementById('use-ai-summary-btn')?.addEventListener('click', useAiSummaryInReply);
   bindPhotoThumbs();
   scrollTranscriptToBottom();
+}
+
+function useAiSummaryInReply() {
+  const summaryEl = document.getElementById('ai-summary-text');
+  const replyTextArea = document.getElementById('reply-text-area');
+  if (!summaryEl || !replyTextArea) return;
+
+  const summaryText = summaryEl.innerText.trim();
+  if (!summaryText || summaryText === SUMMARY_UNAVAILABLE) return;
+
+  const draftContent = `AI Summary Context:\n${summaryText}\n\nDear Customer,\n\n`;
+  replyTextArea.value = draftContent;
+  replyTextArea.focus();
+  replyTextArea.setSelectionRange(draftContent.length, draftContent.length);
 }
 
 function getReplyDraft() {
