@@ -322,21 +322,15 @@
   margin-top: 0.85rem;
 }
 
-.ticket-reply-secondary-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
+.ticket-action-btn-secondary {
+  color: var(--admin-brand);
+  background: #fff;
+  border: 1px solid rgba(198, 40, 40, 0.25);
+  box-shadow: none;
 }
 
-@media (max-width: 520px) {
-  .ticket-reply-secondary-actions {
-    grid-template-columns: 1fr;
-  }
-}
-
-.ticket-reply-secondary-actions .btn {
-  width: 100%;
-  justify-content: center;
+.ticket-action-btn-secondary:hover {
+  background: #fff5f5;
 }
 
 .ticket-action-btn {

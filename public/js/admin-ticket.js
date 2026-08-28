@@ -266,14 +266,9 @@ function renderTicket(complaint) {
             ></textarea>
             <div class="ticket-reply-actions">
               <button type="submit" class="ticket-action-btn">Send Email Reply</button>
-              <div class="ticket-reply-secondary-actions">
-                <button type="button" id="open-gmail-btn" class="btn btn-clay-secondary btn-sm">
-                  ✉️ Open in Gmail
-                </button>
-                <button type="button" id="open-mailto-btn" class="btn btn-clay-secondary btn-sm">
-                  📬 Open in Default Mailer
-                </button>
-              </div>
+              <button type="button" id="open-email-client-btn" class="ticket-action-btn ticket-action-btn-secondary">
+                Draft in Email Client
+              </button>
             </div>
           </form>
           <div id="email-mock" class="email-mock hidden"></div>
@@ -289,10 +284,23 @@ function renderTicket(complaint) {
 
   document.getElementById('save-status').addEventListener('click', saveStatus);
   document.getElementById('reply-form').addEventListener('submit', sendReply);
-  document.getElementById('open-gmail-btn')?.addEventListener('click', () => openEmailDraft('gmail'));
-  document.getElementById('open-mailto-btn')?.addEventListener('click', () => openEmailDraft('mailto'));
+  document.getElementById('open-email-client-btn')?.addEventListener('click', openEmailClient);
   bindPhotoThumbs();
   scrollTranscriptToBottom();
+}
+
+function getReplyDraft() {
+  return {
+    subject: document.getElementById('email-subject')?.value ?? '',
+    message: document.getElementById('reply-text-area')?.value ?? '',
+  };
+}
+
+function restoreReplyDraft(draft = {}) {
+  const subjectEl = document.getElementById('email-subject');
+  const messageEl = document.getElementById('reply-text-area');
+  if (subjectEl && draft.subject !== undefined) subjectEl.value = draft.subject;
+  if (messageEl && draft.message !== undefined) messageEl.value = draft.message;
 }
 
 function getReplyEmailAddress() {
@@ -304,30 +312,24 @@ function getReplyEmailAddress() {
   return email;
 }
 
-function openEmailDraft(provider) {
+function openEmailClient() {
   const customerEmail = getReplyEmailAddress();
   if (!customerEmail) {
     alert('No valid customer email is available for this ticket.');
     return;
   }
 
-  const subjectInput = document.getElementById('email-subject')?.value || '';
-  const bodyText = document.getElementById('reply-text-area')?.value || '';
+  const subjectInput = document.getElementById('email-subject')?.value ?? '';
+  const bodyText = document.getElementById('reply-text-area')?.value ?? '';
 
+  const encodedTo = encodeURIComponent(customerEmail);
   const encodedSubject = encodeURIComponent(subjectInput);
   const encodedBody = encodeURIComponent(bodyText);
-  const encodedTo = encodeURIComponent(customerEmail);
 
-  if (provider === 'gmail') {
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodedTo}&su=${encodedSubject}&body=${encodedBody}`;
-    window.open(gmailUrl, '_blank', 'noopener,noreferrer');
-    return;
-  }
+  const mailtoUrl = `mailto:${encodedTo}?subject=${encodedSubject}&body=${encodedBody}`;
 
-  if (provider === 'mailto') {
-    const mailtoUrl = `mailto:${customerEmail}?subject=${encodedSubject}&body=${encodedBody}`;
-    window.location.href = mailtoUrl;
-  }
+  // Opens the default mail app without clearing the form fields on this page.
+  window.location.href = mailtoUrl;
 }
 
 async function loadTicket() {
@@ -353,6 +355,7 @@ async function saveStatus() {
   const button = document.getElementById('save-status');
   if (!button) return;
 
+  const replyDraft = getReplyDraft();
   button.disabled = true;
   try {
     const res = await adminFetch(`/api/admin/complaints/${ticketId}/status`, {
@@ -362,6 +365,7 @@ async function saveStatus() {
     const data = await res.json();
     if (!data.success) throw new Error(data.message);
     renderTicket(data.complaint);
+    restoreReplyDraft(replyDraft);
   } catch (err) {
     alert(err.message);
     const retryBtn = document.getElementById('save-status');
@@ -378,6 +382,7 @@ async function sendReply(event) {
 
   const submitBtn = event.target.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
+  const replyDraft = getReplyDraft();
 
   try {
     const res = await adminFetch(`/api/admin/complaints/${ticketId}/messages`, {
@@ -389,6 +394,7 @@ async function sendReply(event) {
 
     const mock = data.email_mock;
     renderTicket(data.complaint);
+    restoreReplyDraft(replyDraft);
 
     const emailMockEl = document.getElementById('email-mock');
     emailMockEl.classList.remove('hidden');
