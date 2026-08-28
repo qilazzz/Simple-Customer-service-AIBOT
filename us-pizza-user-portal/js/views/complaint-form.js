@@ -88,7 +88,6 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
 
   let allOutlets = [];
   let availableStates = [...FALLBACK_STATES];
-  let selectedCategory = draft?.selectedCategory || null;
   const photos = [];
 
   container.innerHTML = `
@@ -187,17 +186,14 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
           </div>
 
           <div class="complaint-field">
-            <span class="complaint-field-label">Assistance type <span class="req">*</span></span>
-            <div id="complaint-category-chips" class="complaint-chip-row" role="group" aria-label="Assistance type">
+            <label class="complaint-field-label" for="assistanceType">Assistance type <span class="req">*</span></label>
+            <select id="assistanceType" class="complaint-select" required>
+              <option value="" disabled ${draft?.selectedCategory ? '' : 'selected'}>Select assistance type</option>
               ${COMPLAINT_CATEGORIES.map(
-                (item) => `
-                  <button type="button" class="complaint-chip" data-category="${item.value}">
-                    <span class="complaint-chip-icon">${item.icon}</span>
-                    <span>${item.label}</span>
-                  </button>
-                `,
+                (item) =>
+                  `<option value="${item.value}"${draft?.selectedCategory === item.value ? ' selected' : ''}>${item.label}</option>`,
               ).join('')}
-            </div>
+            </select>
           </div>
 
           <div class="complaint-field">
@@ -236,7 +232,7 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
   const outletSelect = container.querySelector('#outletSelect');
   const outletOtherWrap = container.querySelector('#complaint-outlet-other-wrap');
   const outletOtherInput = container.querySelector('#complaint-outlet-other');
-  const categoryChipsEl = container.querySelector('#complaint-category-chips');
+  const assistanceTypeSelect = container.querySelector('#assistanceType');
   const messageInput = container.querySelector('#complaint-message');
   const charCountEl = container.querySelector('#complaint-char-count');
   const errorEl = container.querySelector('#complaint-error');
@@ -317,17 +313,6 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
     }
   }
 
-  function bindCategoryChips() {
-    categoryChipsEl.querySelectorAll('.complaint-chip').forEach((chip) => {
-      if (selectedCategory === chip.dataset.category) chip.classList.add('is-active');
-      chip.addEventListener('click', () => {
-        categoryChipsEl.querySelectorAll('.complaint-chip').forEach((el) => el.classList.remove('is-active'));
-        chip.classList.add('is-active');
-        selectedCategory = chip.dataset.category;
-      });
-    });
-  }
-
   function renderPhotoPreview() {
     photoPreview.innerHTML = photos
       .map(
@@ -358,20 +343,20 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
       state: stateSelect.value.trim(),
       message: messageInput.value.trim(),
       selectedOutlet: outletSelect.value === OUTLET_OTHER_VALUE ? '' : outletSelect.value,
-      selectedCategory,
+      selectedCategory: assistanceTypeSelect?.value || '',
       outletModeOther: outletSelect.value === OUTLET_OTHER_VALUE,
       customOutlet: outletOtherInput.value.trim(),
     };
   }
 
   function applyDraftSelections() {
-    if (selectedCategory) {
-      categoryChipsEl.querySelector(`[data-category="${selectedCategory}"]`)?.classList.add('is-active');
-    }
     if (draft?.state) {
       stateSelect.value = draft.state;
       const preferredOutlet = draft.outletModeOther ? OUTLET_OTHER_VALUE : draft.selectedOutlet || '';
       populateOutletSelect(draft.state, preferredOutlet);
+    }
+    if (draft?.selectedCategory && assistanceTypeSelect) {
+      assistanceTypeSelect.value = draft.selectedCategory;
     }
     updateCharCount();
   }
@@ -434,7 +419,8 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
     clearError();
 
     const outletName = getOutletName();
-    if (!selectedCategory) {
+    const assistanceType = assistanceTypeSelect?.value?.trim();
+    if (!assistanceType) {
       showError('Please select an assistance type.');
       return;
     }
@@ -452,7 +438,7 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
       customer_phone: formatPhoneWithCountry(countryCode, localPhone),
       order_id: container.querySelector('#complaint-order-id')?.value.trim(),
       outlet_name: outletName,
-      complaint_category: selectedCategory,
+      complaint_category: assistanceType,
       message: messageInput.value.trim(),
     };
 
@@ -471,6 +457,5 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
     }
   });
 
-  bindCategoryChips();
   loadOutlets();
 }

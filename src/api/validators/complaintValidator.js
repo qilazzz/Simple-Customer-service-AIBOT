@@ -3,6 +3,7 @@ const VALID_CATEGORIES = [
   'late_delivery',
   'food_quality',
   'service',
+  'rider',
   'other',
 ];
 

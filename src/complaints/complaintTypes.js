@@ -1,5 +1,5 @@
 /**
- * @typedef {'wrong_order'|'late_delivery'|'food_quality'|'service'|'other'} ComplaintCategory
+ * @typedef {'wrong_order'|'late_delivery'|'food_quality'|'service'|'rider'|'other'} ComplaintCategory
  * @typedef {'pending'|'in_progress'|'resolved'} ComplaintStatus
  * @typedef {'Low'|'Medium'|'High'} ComplaintPriority
  * @typedef {'customer'|'ai'|'admin'} MessageSender
@@ -11,6 +11,7 @@ const CATEGORY_LABELS = {
   late_delivery: 'Late Delivery',
   food_quality: 'Food Quality',
   service: 'Service',
+  rider: 'Rider',
   other: 'Other',
 };
 
