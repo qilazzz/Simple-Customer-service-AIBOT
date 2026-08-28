@@ -8,6 +8,25 @@ const MESSAGE_MAX = 750;
 const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 const PHOTO_MAX_COUNT = 3;
 
+const FALLBACK_STATES = [
+  'Selangor',
+  'Penang',
+  'Johor',
+  'Kuala Lumpur',
+  'Kedah',
+  'Perak',
+  'Melaka',
+  'Negeri Sembilan',
+  'Pahang',
+  'Kelantan',
+  'Terengganu',
+  'Sabah',
+  'Sarawak',
+  'Labuan',
+];
+
+const OUTLET_OTHER_VALUE = '__other__';
+
 const SUPPORT_ILLUSTRATION = `
   <svg class="complaint-illustration-svg" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <ellipse cx="100" cy="128" rx="52" ry="8" fill="#e5e7eb"/>
@@ -68,9 +87,8 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
   const draft = loadDraft();
 
   let allOutlets = [];
-  let selectedOutlet = draft?.selectedOutlet || null;
+  let availableStates = [...FALLBACK_STATES];
   let selectedCategory = draft?.selectedCategory || null;
-  let outletModeOther = draft?.outletModeOther || false;
   const photos = [];
 
   container.innerHTML = `
@@ -152,21 +170,19 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
           </div>
 
           <div class="complaint-field">
-            <label class="complaint-field-label" for="complaint-state">Area/State <span class="req">*</span></label>
-            <div class="complaint-input-wrap complaint-input-wrap-flag">
-              <span class="complaint-input-icon" aria-hidden="true">📍</span>
-              <input id="complaint-state" type="text" placeholder="e.g., Selangor" maxlength="80" required value="${draft?.state || ''}" />
-              <span class="complaint-flag-badge" aria-hidden="true">🇲🇾</span>
-            </div>
+            <label class="complaint-field-label" for="stateSelect">Area/State <span class="req">*</span></label>
+            <select id="stateSelect" class="complaint-select" required>
+              <option value="">Select state</option>
+            </select>
           </div>
 
           <div class="complaint-field">
-            <span class="complaint-field-label">Outlet <span class="req">*</span></span>
-            <div id="complaint-outlet-chips" class="complaint-chip-row" role="group" aria-label="Select outlet">
-              <span class="complaint-chip-loading">Loading outlets…</span>
-            </div>
+            <label class="complaint-field-label" for="outletSelect">Outlet <span class="req">*</span></label>
+            <select id="outletSelect" class="complaint-select" disabled required>
+              <option value="">Select state first</option>
+            </select>
             <div id="complaint-outlet-other-wrap" class="complaint-outlet-other hidden">
-              <input id="complaint-outlet-other" type="text" placeholder="Enter outlet name" maxlength="150" value="${draft?.customOutlet || ''}" />
+              <input id="complaint-outlet-other" type="text" class="complaint-select" placeholder="Enter outlet name" maxlength="150" value="${draft?.customOutlet || ''}" />
             </div>
           </div>
 
@@ -216,11 +232,11 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
   `;
 
   const form = container.querySelector('#complaint-form');
-  const outletChipsEl = container.querySelector('#complaint-outlet-chips');
+  const stateSelect = container.querySelector('#stateSelect');
+  const outletSelect = container.querySelector('#outletSelect');
   const outletOtherWrap = container.querySelector('#complaint-outlet-other-wrap');
   const outletOtherInput = container.querySelector('#complaint-outlet-other');
   const categoryChipsEl = container.querySelector('#complaint-category-chips');
-  const stateInput = container.querySelector('#complaint-state');
   const messageInput = container.querySelector('#complaint-message');
   const charCountEl = container.querySelector('#complaint-char-count');
   const errorEl = container.querySelector('#complaint-error');
@@ -244,65 +260,61 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
     charCountEl.textContent = `${len}/${MESSAGE_MAX}`;
   }
 
-  function getFilteredOutlets() {
-    const state = stateInput.value.trim().toLowerCase();
-    if (!state) return allOutlets;
-    return allOutlets.filter((outlet) => {
-      const outletState = (outlet.state || '').toLowerCase();
-      return outletState.includes(state) || state.includes(outletState);
-    });
+  function normalizeState(value) {
+    return String(value || '').trim().toLowerCase();
   }
 
-  function renderOutletChips() {
-    const filtered = getFilteredOutlets();
-    const preview = filtered.slice(0, 3);
+  function mergeStates(dbStates = []) {
+    const merged = new Set([...FALLBACK_STATES, ...dbStates.filter(Boolean)]);
+    return [...merged].sort((a, b) => a.localeCompare(b));
+  }
 
-    if (!filtered.length) {
-      outletChipsEl.innerHTML = `
-        <button type="button" class="complaint-chip is-active" data-outlet="__other__">Other</button>
-      `;
-      outletModeOther = true;
-      selectedOutlet = null;
-      outletOtherWrap.classList.remove('hidden');
-      bindOutletChips();
+  function populateStateSelect() {
+    stateSelect.innerHTML = [
+      '<option value="">Select state</option>',
+      ...availableStates.map(
+        (state) => `<option value="${state.replace(/"/g, '&quot;')}">${state}</option>`,
+      ),
+    ].join('');
+  }
+
+  function getOutletsForState(state) {
+    const target = normalizeState(state);
+    if (!target) return [];
+    return allOutlets.filter((outlet) => normalizeState(outlet.state) === target);
+  }
+
+  function toggleOutletOtherField(show) {
+    outletOtherWrap.classList.toggle('hidden', !show);
+    if (!show) outletOtherInput.value = '';
+  }
+
+  function populateOutletSelect(state, preferredValue = '') {
+    if (!state) {
+      outletSelect.disabled = true;
+      outletSelect.innerHTML = '<option value="">Select state first</option>';
+      toggleOutletOtherField(false);
       return;
     }
 
-    outletChipsEl.innerHTML = [
-      ...preview.map(
-        (outlet) => {
-          const name = outlet.name || outlet.outlet_name || '';
-          const short = name.length > 22 ? `${name.slice(0, 20)}…` : name;
-          const active = selectedOutlet === name && !outletModeOther ? ' is-active' : '';
-          return `<button type="button" class="complaint-chip${active}" data-outlet="${name.replace(/"/g, '&quot;')}" title="${name.replace(/"/g, '&quot;')}">${short}</button>`;
-        },
-      ),
-      `<button type="button" class="complaint-chip${outletModeOther ? ' is-active' : ''}" data-outlet="__other__">Other</button>`,
+    const filtered = getOutletsForState(state);
+    outletSelect.disabled = false;
+    outletSelect.innerHTML = [
+      '<option value="">Select outlet</option>',
+      ...filtered.map((outlet) => {
+        const name = outlet.name || outlet.outlet_name || '';
+        return `<option value="${name.replace(/"/g, '&quot;')}">${name}</option>`;
+      }),
+      `<option value="${OUTLET_OTHER_VALUE}">Other</option>`,
     ].join('');
 
-    outletOtherWrap.classList.toggle('hidden', !outletModeOther);
-    bindOutletChips();
-  }
-
-  function bindOutletChips() {
-    outletChipsEl.querySelectorAll('.complaint-chip').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        const value = chip.dataset.outlet;
-        outletChipsEl.querySelectorAll('.complaint-chip').forEach((el) => el.classList.remove('is-active'));
-        chip.classList.add('is-active');
-
-        if (value === '__other__') {
-          outletModeOther = true;
-          selectedOutlet = null;
-          outletOtherWrap.classList.remove('hidden');
-          outletOtherInput.focus();
-        } else {
-          outletModeOther = false;
-          selectedOutlet = value;
-          outletOtherWrap.classList.add('hidden');
-        }
-      });
-    });
+    if (preferredValue) {
+      outletSelect.value = preferredValue;
+      toggleOutletOtherField(preferredValue === OUTLET_OTHER_VALUE);
+    } else {
+      outletSelect.value = '';
+      toggleOutletOtherField(false);
+    }
   }
 
   function bindCategoryChips() {
@@ -343,11 +355,11 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
       email: container.querySelector('#complaint-email')?.value.trim(),
       countryCode: container.querySelector('#complaint-country')?.value,
       orderId: container.querySelector('#complaint-order-id')?.value.trim(),
-      state: stateInput.value.trim(),
+      state: stateSelect.value.trim(),
       message: messageInput.value.trim(),
-      selectedOutlet,
+      selectedOutlet: outletSelect.value === OUTLET_OTHER_VALUE ? '' : outletSelect.value,
       selectedCategory,
-      outletModeOther,
+      outletModeOther: outletSelect.value === OUTLET_OTHER_VALUE,
       customOutlet: outletOtherInput.value.trim(),
     };
   }
@@ -356,28 +368,32 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
     if (selectedCategory) {
       categoryChipsEl.querySelector(`[data-category="${selectedCategory}"]`)?.classList.add('is-active');
     }
-    if (outletModeOther) {
-      outletOtherWrap.classList.remove('hidden');
+    if (draft?.state) {
+      stateSelect.value = draft.state;
+      const preferredOutlet = draft.outletModeOther ? OUTLET_OTHER_VALUE : draft.selectedOutlet || '';
+      populateOutletSelect(draft.state, preferredOutlet);
     }
     updateCharCount();
   }
 
   function getOutletName() {
-    if (outletModeOther) return outletOtherInput.value.trim();
-    return selectedOutlet;
+    if (outletSelect.value === OUTLET_OTHER_VALUE) return outletOtherInput.value.trim();
+    return outletSelect.value.trim();
   }
 
   async function loadOutlets() {
     try {
-      const data = await outletsApi.listOutlets();
-      allOutlets = data.outlets || [];
-      renderOutletChips();
-      if (draft?.selectedOutlet && !outletModeOther) {
-        selectedOutlet = draft.selectedOutlet;
-        renderOutletChips();
-      }
+      const [outletsData, statesData] = await Promise.all([
+        outletsApi.listOutlets(),
+        outletsApi.listStates().catch(() => ({ states: [] })),
+      ]);
+      allOutlets = outletsData.outlets || [];
+      availableStates = mergeStates(statesData.states || []);
+      populateStateSelect();
+      applyDraftSelections();
     } catch (err) {
-      outletChipsEl.innerHTML = '<span class="complaint-chip-error">Could not load outlets</span>';
+      availableStates = mergeStates([]);
+      populateStateSelect();
       showError(err.message || 'Could not load outlets.');
     }
   }
@@ -399,10 +415,13 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
 
   messageInput?.addEventListener('input', updateCharCount);
 
-  stateInput?.addEventListener('input', () => {
-    selectedOutlet = null;
-    outletModeOther = false;
-    renderOutletChips();
+  stateSelect?.addEventListener('change', () => {
+    populateOutletSelect(stateSelect.value);
+  });
+
+  outletSelect?.addEventListener('change', () => {
+    toggleOutletOtherField(outletSelect.value === OUTLET_OTHER_VALUE);
+    if (outletSelect.value === OUTLET_OTHER_VALUE) outletOtherInput.focus();
   });
 
   container.querySelector('#complaint-save-draft')?.addEventListener('click', () => {
@@ -453,6 +472,5 @@ export function renderComplaintFormView(container, { guestMode = false, onSubmit
   });
 
   bindCategoryChips();
-  applyDraftSelections();
   loadOutlets();
 }
