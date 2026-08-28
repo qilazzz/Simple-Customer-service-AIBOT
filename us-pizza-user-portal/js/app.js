@@ -53,7 +53,7 @@ function getTitle(view, params = {}) {
     case 'faq':
       return 'FAQ';
     case 'complaint':
-      return 'Order Issue / Complaint';
+      return 'Need Help with an Order?';
     default:
       return 'US Pizza';
   }
@@ -67,6 +67,8 @@ function showView(name, params = {}) {
 
   headerTitle.textContent = getTitle(name, params);
   headerBack.classList.toggle('hidden', name === 'home');
+  headerBack.textContent = name === 'complaint' ? '← Back' : '←';
+  document.getElementById('mobile-frame')?.classList.toggle('complaint-mode', name === 'complaint');
   authChip?.classList.toggle('hidden', name !== 'home');
 
   const showFab = name === 'home';

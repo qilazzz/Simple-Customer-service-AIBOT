@@ -59,9 +59,9 @@ export const SUPPORT_MENU = [
 export const BOT_MENU = SUPPORT_MENU.filter((item) => item.id !== 'other');
 
 export const COMPLAINT_CATEGORIES = [
-  { value: 'wrong_order', label: 'Wrong Order' },
-  { value: 'late_delivery', label: 'Late Delivery' },
-  { value: 'food_quality', label: 'Food Quality' },
-  { value: 'service', label: 'Service' },
-  { value: 'other', label: 'Other' },
+  { value: 'wrong_order', label: 'Wrong Order', icon: '📦' },
+  { value: 'late_delivery', label: 'Late Delivery', icon: '🛵' },
+  { value: 'food_quality', label: 'Food Quality', icon: '🍕' },
+  { value: 'service', label: 'Service', icon: '🛠️' },
+  { value: 'other', label: 'Other', icon: '💬' },
 ];
