@@ -1,0 +1,25 @@
+:root {
+  --brand: #c8102e;
+  --brand-dark: #9b0c23;
+  --brand-soft: #fff5f5;
+  --bg: #f4f4f5;
+  --surface: #ffffff;
+  --text: #18181b;
+  --muted: #71717a;
+  --border: #e4e4e7;
+  --border-soft: #e5e5e5;
+  --ai-bubble: #f0f0f0;
+  --user-bubble: #c8102e;
+  --system-bubble: #ecfdf5;
+  --system-text: #166534;
+  --error: #b91c1c;
+  --error-bg: #fef2f2;
+  --live-connected: #22c55e;
+  --live-waiting: #f59e0b;
+  --radius-lg: 16px;
+  --radius-md: 14px;
+  --radius-sm: 12px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}

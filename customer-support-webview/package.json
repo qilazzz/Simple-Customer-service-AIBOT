@@ -1,0 +1,16 @@
+{
+  "name": "us-pizza-customer-support-webview",
+  "version": "1.0.0",
+  "description": "Standalone US Pizza Customer Service WebView app — connects to the shared customer-service API",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes serve . -l 5173",
+    "dev": "npx --yes serve . -l 5173"
+  },
+  "keywords": [
+    "webview",
+    "customer-support",
+    "us-pizza"
+  ],
+  "license": "MIT"
+}

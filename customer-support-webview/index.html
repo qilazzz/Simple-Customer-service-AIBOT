@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#c8102e" />
+    <title>US Pizza Support</title>
+    <link rel="stylesheet" href="/styles/app.css" />
+  </head>
+  <body class="webview-embed">
+    <div class="app-shell">
+      <header class="app-header">
+        <h1 class="app-header-title">Customer Service</h1>
+        <span id="auth-badge" class="app-header-meta">Guest</span>
+      </header>
+
+      <div id="auth-bar" class="auth-bar hidden">
+        <span id="auth-bar-user" class="auth-bar-user"></span>
+        <div class="auth-bar-actions">
+          <button id="auth-logout-btn" type="button" class="btn-link">Log out</button>
+        </div>
+      </div>
+
+      <main class="app-main">
+        <section class="hero-card">
+          <h1>How can we help?</h1>
+          <p class="hero-sub">US Pizza Malaysia Customer Service</p>
+          <p class="hero-hint">
+            Choose an option below. Live agent chat history is kept separately under Talk to
+            Support.
+          </p>
+        </section>
+
+        <nav id="support-menu" class="menu-list" aria-label="Support options"></nav>
+      </main>
+    </div>
+
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>
