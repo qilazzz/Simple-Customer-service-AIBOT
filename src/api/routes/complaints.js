@@ -2,6 +2,7 @@ const express = require('express');
 const complaintService = require('../../complaints/complaintService');
 const { validateComplaintPayload } = require('../validators/complaintValidator');
 const { handlePhotoUpload } = require('../middleware/upload');
+const { optionalCustomer } = require('../middleware/customerAuth');
 
 const router = express.Router();
 
@@ -12,6 +13,45 @@ router.get('/', async (_req, res) => {
   } catch (err) {
     console.error('Failed to fetch complaints:', err.message);
     return res.status(500).json({ success: false, message: 'Could not load complaints.' });
+  }
+});
+
+router.get('/track', optionalCustomer, async (req, res) => {
+  try {
+    const queryEmail = String(req.query.email || '').trim().toLowerCase();
+    const queryPhone = String(req.query.phone || req.query.phone_number || '').trim();
+
+    let email = queryEmail || null;
+    let phone = queryPhone || null;
+    let requireBoth = false;
+
+    if (req.customer) {
+      email = req.customer.email?.toLowerCase() || email;
+      phone = req.customer.phone_number || phone;
+    } else {
+      requireBoth = true;
+      if (!email || !phone) {
+        return res.status(400).json({
+          success: false,
+          message: 'Log in to view your complaint history, or provide both email and phone number.',
+        });
+      }
+    }
+
+    const complaints = await complaintService.listComplaintsForCustomer({
+      email,
+      phone,
+      requireBoth,
+    });
+
+    return res.json({
+      success: true,
+      count: complaints.length,
+      complaints,
+    });
+  } catch (err) {
+    console.error('Failed to track complaints:', err.message);
+    return res.status(500).json({ success: false, message: 'Could not load complaint history.' });
   }
 });
 

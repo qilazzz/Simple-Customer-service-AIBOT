@@ -1,4 +1,4 @@
-export function renderHomeView(container, { onFindOutlets, onOpenSupport, onOpenFaq }) {
+export function renderHomeView(container, { onFindOutlets, onOpenSupport, onOpenFaq, onTrackComplaints }) {
   container.innerHTML = `
     <main class="scroll-content">
       <section class="hero-card">
@@ -16,6 +16,11 @@ export function renderHomeView(container, { onFindOutlets, onOpenSupport, onOpen
         <span class="home-action-sub">Report an issue or leave feedback</span>
       </button>
 
+      <button type="button" class="home-action-card home-action-history" id="home-history-btn">
+        <span class="home-action-title">📋 Track My Complaints</span>
+        <span class="home-action-sub">View ticket status and admin updates</span>
+      </button>
+
       <button type="button" class="home-action-card home-action-faq" id="home-faq-btn">
         <span class="home-action-title">❓ FAQ</span>
         <span class="home-action-sub">Halal, hours, locations &amp; more</span>
@@ -25,5 +30,6 @@ export function renderHomeView(container, { onFindOutlets, onOpenSupport, onOpen
 
   container.querySelector('#home-outlets-btn')?.addEventListener('click', onFindOutlets);
   container.querySelector('#home-support-btn')?.addEventListener('click', onOpenSupport);
+  container.querySelector('#home-history-btn')?.addEventListener('click', onTrackComplaints);
   container.querySelector('#home-faq-btn')?.addEventListener('click', onOpenFaq);
 }

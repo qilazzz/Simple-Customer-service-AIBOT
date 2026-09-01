@@ -13,11 +13,12 @@ import { renderLoginView, renderRegisterView } from './views/auth.js';
 import { renderOutletsView } from './views/outlets.js';
 import { renderFaqView } from './views/faq.js';
 import { renderComplaintFormView } from './views/complaint-form.js';
+import { renderComplaintHistoryView } from './views/complaint-history.js';
 import { createBotChatController } from './views/bot-chat.js';
 import { createLiveChatController } from './views/live-chat.js';
 import { trackMenuButtonClick } from './analytics.js';
 
-const VIEWS = ['home', 'outlets', 'menu', 'bot', 'live', 'login', 'register', 'faq', 'complaint'];
+const VIEWS = ['home', 'outlets', 'menu', 'bot', 'live', 'login', 'register', 'faq', 'complaint', 'history'];
 
 let currentView = 'home';
 let navParams = {};
@@ -54,6 +55,8 @@ function getTitle(view, params = {}) {
       return 'FAQ';
     case 'complaint':
       return 'Need Help with an Order?';
+    case 'history':
+      return 'Track My Complaints';
     default:
       return 'US Pizza';
   }
@@ -143,13 +146,17 @@ function finishAuthRedirect() {
     navigateTo('menu');
     return;
   }
+  if (redirect === 'history') {
+    navigateTo('history');
+    return;
+  }
   navigateBack();
 }
 
 function navigateBack() {
   if (currentView === 'live' || currentView === 'bot' || currentView === 'complaint') navigateTo('menu');
   else if (currentView === 'menu') navigateTo('home');
-  else if (currentView === 'outlets' || currentView === 'faq') navigateTo('home');
+  else if (currentView === 'outlets' || currentView === 'faq' || currentView === 'history') navigateTo('home');
   else if (currentView === 'login' || currentView === 'register') navigateTo('home');
   else navigateTo('home');
 }
@@ -186,6 +193,21 @@ function navigateTo(view, options = {}) {
     return;
   }
 
+  if (view === 'history') {
+    showView('history', options);
+    const container = document.getElementById('view-history');
+    container.innerHTML = '';
+    renderComplaintHistoryView(container, {
+      onLogin: () => navigateTo('login', { redirect: 'history' }),
+    });
+    container.addEventListener(
+      'track-request-login',
+      () => navigateTo('login', { redirect: 'history' }),
+      { once: true },
+    );
+    return;
+  }
+
   if (view === 'live') {
     showView('live', options);
     const container = document.getElementById('view-live');
@@ -212,6 +234,7 @@ function navigateTo(view, options = {}) {
     showView('menu', options);
     renderMenuView(document.getElementById('view-menu'), {
       onSelectOption: handleMenuOption,
+      onTrackComplaints: () => navigateTo('history'),
     });
     return;
   }
@@ -272,6 +295,7 @@ function navigateTo(view, options = {}) {
     onFindOutlets: () => navigateTo('outlets'),
     onOpenSupport: promptSupportAccess,
     onOpenFaq: () => navigateTo('faq'),
+    onTrackComplaints: () => navigateTo('history'),
   });
 }
 

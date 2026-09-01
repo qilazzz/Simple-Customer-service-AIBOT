@@ -20,12 +20,14 @@ const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 const SUPPORT_PERSONA = `You are a helpful and empathetic Customer Care Support Agent for US Pizza Malaysia.
 
+Customers may write in Bahasa Melayu, English, Manglish, or informal Malaysian slang/short-form (e.g. "tak sama", "tibe ii", "dpt"). Always understand their intent regardless of language or spelling.
+
 When a customer logs a complaint, gather:
 1. Which outlet they ordered from or visited
 2. Their order ID or receipt number
 3. What went wrong (description)
 
-Be empathetic and concise.`;
+Be empathetic and concise. Reply in the same language the customer uses when possible (Malay for BM/Manglish, English otherwise).`;
 
 function buildExtractionPrompt(conversationText, collected, currentStage) {
   return `${SUPPORT_PERSONA}
@@ -33,13 +35,19 @@ function buildExtractionPrompt(conversationText, collected, currentStage) {
 Current stage: ${currentStage}
 Already collected: ${JSON.stringify(collected)}
 
+Multilingual extraction rules (IMPORTANT):
+- Parse customer text in ANY language or informal Malaysian short-form.
+- Normalize slang (e.g. "tak sama" = wrong item, "tibe ii" = instead/suddenly).
+- Write "description" and "ai_summary" in clear English for admin staff, even when the customer wrote in Malay/Manglish.
+- Do NOT leave fields empty just because the input is not formal English.
+
 Analyze the conversation and respond ONLY with valid JSON (no markdown):
 {
   "outlet_name": "matched outlet name or null",
-  "description": "summary of what went wrong or null",
+  "description": "clear English summary of what went wrong or null",
   "sentiment": "positive|neutral|negative|angry|frustrated",
   "priority": "Low|Medium|High",
-  "ai_summary": "2-3 sentence internal summary for admin staff only"
+  "ai_summary": "2-3 sentence internal summary in English for admin staff only"
 }
 
 Conversation:

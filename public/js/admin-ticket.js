@@ -98,6 +98,22 @@ function getCustomerFields(complaint) {
   };
 }
 
+function cleanPhoneForWhatsApp(phone) {
+  if (!phone || phone === '—') return '';
+  return String(phone).replace(/\D/g, '');
+}
+
+function buildWhatsAppUrl(phone, customerName, ticketNumber) {
+  const cleanPhone = cleanPhoneForWhatsApp(phone);
+  if (!cleanPhone) return null;
+
+  const displayName =
+    !customerName || customerName === '—' ? 'there' : customerName.split(/\s+/)[0];
+  const message = `Hi ${displayName}, regarding your US Pizza complaint ticket #${ticketNumber}. How can we assist you today?`;
+
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+}
+
 function getPhotoUrls(complaint) {
   if (complaint.attachment_urls?.length) return complaint.attachment_urls;
   if (complaint.photos?.length) return complaint.photos.map((photo) => photo.url);
@@ -187,6 +203,7 @@ function renderTicket(complaint) {
   const sentimentClass = String(complaint.sentiment || 'neutral').toLowerCase();
   const photos = getPhotoUrls(complaint);
   const statusClass = String(complaint.status || 'pending').replace(/\s+/g, '_');
+  const whatsappUrl = buildWhatsAppUrl(customer.phone, customer.name, ticketNumber);
 
   setPageTitle(ticketNumber);
 
@@ -219,9 +236,23 @@ function renderTicket(complaint) {
               <span>Email</span>
               <strong id="customer-email">${escapeHtml(customer.email)}</strong>
             </div>
-            <div class="customer-field">
+            <div class="customer-field customer-field-phone">
               <span>Phone</span>
-              <strong>${escapeHtml(customer.phone)}</strong>
+              <strong id="customer-phone">${escapeHtml(customer.phone)}</strong>
+              ${
+                whatsappUrl
+                  ? `<a
+                      id="whatsapp-chat-btn"
+                      class="whatsapp-chat-btn"
+                      href="${escapeHtml(whatsappUrl)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <span class="whatsapp-chat-btn-icon" aria-hidden="true">💬</span>
+                      Chat on WhatsApp
+                    </a>`
+                  : ''
+              }
             </div>
           </div>
         </section>
@@ -277,7 +308,7 @@ function renderTicket(complaint) {
 
         <section class="ticket-card">
           <h2 class="ticket-card-title">Reply to Customer</h2>
-          <form id="reply-form">
+          <div id="reply-form" class="ticket-reply-form">
             <label class="ticket-field-label" for="email-subject">Subject</label>
             <input
               id="email-subject"
@@ -293,13 +324,14 @@ function renderTicket(complaint) {
               placeholder="Write your response to the customer..."
             ></textarea>
             <div class="ticket-reply-actions">
-              <button type="submit" class="ticket-action-btn">Send Email Reply</button>
+              <button type="button" id="draft-ai-reply-btn" class="ticket-action-btn ticket-action-btn-ai">
+                Draft AI Response
+              </button>
               <button type="button" id="open-email-client-btn" class="ticket-action-btn ticket-action-btn-secondary">
                 Draft in Email Client
               </button>
             </div>
-          </form>
-          <div id="email-mock" class="email-mock hidden"></div>
+          </div>
         </section>
 
         <section class="ticket-card">
@@ -311,11 +343,42 @@ function renderTicket(complaint) {
   `;
 
   document.getElementById('save-status').addEventListener('click', saveStatus);
-  document.getElementById('reply-form').addEventListener('submit', sendReply);
   document.getElementById('open-email-client-btn')?.addEventListener('click', openEmailClient);
   document.getElementById('use-ai-summary-btn')?.addEventListener('click', useAiSummaryInReply);
+  document.getElementById('draft-ai-reply-btn')?.addEventListener('click', draftAiReply);
   bindPhotoThumbs();
   scrollTranscriptToBottom();
+}
+
+async function draftAiReply() {
+  const button = document.getElementById('draft-ai-reply-btn');
+  const replyTextArea = document.getElementById('reply-text-area');
+  if (!button || !replyTextArea) return;
+
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Drafting…';
+
+  try {
+    const res = await adminFetch(`/api/admin/complaints/${ticketId}/draft-reply`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    const draftText = String(data.draft?.message_text || '').trim();
+    if (!draftText) throw new Error('AI returned an empty draft.');
+
+    replyTextArea.value = draftText;
+    replyTextArea.focus();
+    replyTextArea.setSelectionRange(draftText.length, draftText.length);
+  } catch (err) {
+    alert(err.message || 'Could not generate AI reply draft.');
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
 }
 
 function useAiSummaryInReply() {
@@ -412,44 +475,6 @@ async function saveStatus() {
   } catch (err) {
     alert(err.message);
     const retryBtn = document.getElementById('save-status');
-    if (retryBtn) retryBtn.disabled = false;
-  }
-}
-
-async function sendReply(event) {
-  event.preventDefault();
-
-  const textarea = document.getElementById('reply-text-area');
-  const message_text = textarea.value.trim();
-  if (!message_text) return;
-
-  const submitBtn = event.target.querySelector('button[type="submit"]');
-  submitBtn.disabled = true;
-  const replyDraft = getReplyDraft();
-
-  try {
-    const res = await adminFetch(`/api/admin/complaints/${ticketId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ message_text }),
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message);
-
-    const mock = data.email_mock;
-    renderTicket(data.complaint);
-    restoreReplyDraft(replyDraft);
-
-    const emailMockEl = document.getElementById('email-mock');
-    emailMockEl.classList.remove('hidden');
-    emailMockEl.innerHTML = `
-      <strong>Email mockup sent</strong><br>
-      To: ${escapeHtml(mock.to)}<br>
-      Subject: ${escapeHtml(mock.subject)}<br>
-      Body: ${escapeHtml(mock.body)}
-    `;
-  } catch (err) {
-    alert(err.message);
-    const retryBtn = document.querySelector('#reply-form button[type="submit"]');
     if (retryBtn) retryBtn.disabled = false;
   }
 }

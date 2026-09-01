@@ -1,6 +1,6 @@
 import { SUPPORT_MENU } from '../config.js';
 
-export function renderMenuView(container, { onSelectOption }) {
+export function renderMenuView(container, { onSelectOption, onTrackComplaints }) {
   container.innerHTML = `
     <main class="scroll-content">
       <section class="hero-card hero-card-menu">
@@ -22,6 +22,10 @@ export function renderMenuView(container, { onSelectOption }) {
           `,
         ).join('')}
       </nav>
+
+      <button type="button" class="menu-track-btn" id="menu-track-btn">
+        📋 Track My Complaints / History
+      </button>
     </main>
   `;
 
@@ -30,4 +34,6 @@ export function renderMenuView(container, { onSelectOption }) {
       onSelectOption(button.dataset.optionId);
     });
   });
+
+  container.querySelector('#menu-track-btn')?.addEventListener('click', onTrackComplaints);
 }

@@ -3,7 +3,7 @@ const { CATEGORY_LABELS, STATUS_LABELS } = require('./complaintTypes');
 const {
   SUMMARY_UNAVAILABLE,
   generateTicketAiSummary,
-  countWords,
+  hasAnalyzableContent,
 } = require('./ticketAiSummary');
 
 /** Avoid MySQL collation errors between complaints and us_pizza_outlets. */
@@ -139,6 +139,153 @@ async function listComplaints(filters = {}) {
   return rows.map((row) => formatComplaint(row, { photos: photosByComplaint[row.id] || [] }));
 }
 
+function isValidDateParam(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
+async function listComplaintsForExport(filters = {}) {
+  let query = withOutletJoin(db('complaints')).orderBy('complaints.created_at', 'desc');
+
+  if (filters.startDate && isValidDateParam(filters.startDate)) {
+    query = query.where('complaints.created_at', '>=', `${filters.startDate.trim()} 00:00:00`);
+  }
+
+  if (filters.endDate && isValidDateParam(filters.endDate)) {
+    query = query.where('complaints.created_at', '<=', `${filters.endDate.trim()} 23:59:59`);
+  }
+
+  const rows = await query;
+  const photosByComplaint = await loadPhotosForComplaints(rows.map((row) => row.id));
+
+  return rows.map((row) => formatComplaint(row, { photos: photosByComplaint[row.id] || [] }));
+}
+
+function normalizePhone(value) {
+  return String(value || '').replace(/[\s-]/g, '').trim();
+}
+
+async function loadMessagesForComplaints(ids) {
+  if (!ids.length) return {};
+  const rows = await db('messages').whereIn('complaint_id', ids).orderBy('timestamp', 'asc');
+  return rows.reduce((acc, row) => {
+    if (!acc[row.complaint_id]) acc[row.complaint_id] = [];
+    acc[row.complaint_id].push(row);
+    return acc;
+  }, {});
+}
+
+function formatTicketReference(id) {
+  return `CMP-${String(id).padStart(3, '0')}`;
+}
+
+const PUBLIC_NOTE_PREFIX = '[Public note]';
+const STATUS_UPDATE_PATTERN = /^Status updated to /i;
+
+function looksLikeInternalEmailReply(text) {
+  const value = String(text || '').trim();
+  if (!value) return true;
+  if (value.length > 280) return true;
+  if (/^AI Summary Context:/i.test(value)) return true;
+  if (/^Dear\s+/i.test(value) && /Warm regards|Customer Care Team|US Pizza Customer Care/i.test(value)) {
+    return true;
+  }
+  return false;
+}
+
+function isPublicStatusUpdate(message) {
+  const text = String(message.message_text || '').trim();
+  if (!text || String(message.sender || '').toLowerCase() !== 'admin') return false;
+  if (looksLikeInternalEmailReply(text)) return false;
+  if (STATUS_UPDATE_PATTERN.test(text)) return true;
+  if (text.startsWith(PUBLIC_NOTE_PREFIX)) return true;
+  return false;
+}
+
+function formatPublicStatusUpdate(message) {
+  let text = String(message.message_text || '').trim();
+  if (text.startsWith(PUBLIC_NOTE_PREFIX)) {
+    text = text.slice(PUBLIC_NOTE_PREFIX.length).trim();
+  }
+  return {
+    message_text: text,
+    timestamp: message.timestamp,
+  };
+}
+
+function extractPublicStatusUpdates(messages = []) {
+  const seen = new Set();
+  return messages
+    .filter(isPublicStatusUpdate)
+    .map(formatPublicStatusUpdate)
+    .filter((update) => {
+      const key = `${update.message_text}|${update.timestamp}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function formatComplaintForCustomerTracking(row, messages = []) {
+  const formatted = formatComplaint(row, { messages });
+  const statusUpdates = extractPublicStatusUpdates(formatted.messages);
+
+  return {
+    id: formatted.id,
+    ticket_reference: formatTicketReference(formatted.id),
+    status: formatted.status,
+    status_label: formatted.status_label,
+    category: formatted.category,
+    category_label: formatted.category_label,
+    order_id: formatted.order_id,
+    description: formatted.description,
+    outlet_name: formatted.outlet_name,
+    created_at: formatted.created_at,
+    updated_at: formatted.updated_at,
+    status_updates: statusUpdates,
+  };
+}
+
+/**
+ * List complaints belonging to a customer by email / phone.
+ * @param {{ email?: string, phone?: string, requireBoth?: boolean }} filters
+ */
+async function listComplaintsForCustomer({ email, phone, requireBoth = false } = {}) {
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+  const normalizedPhone = phone ? normalizePhone(phone) : null;
+
+  if (!normalizedEmail && !normalizedPhone) {
+    return [];
+  }
+
+  let query = withOutletJoin(db('complaints')).orderBy('complaints.created_at', 'desc');
+
+  if (requireBoth) {
+    query = query
+      .where('complaints.customer_email', normalizedEmail)
+      .whereRaw('REPLACE(REPLACE(complaints.customer_phone, " ", ""), "-", "") = ?', [
+        normalizedPhone,
+      ]);
+  } else {
+    query = query.where(function matchCustomerContact() {
+      if (normalizedEmail) {
+        this.orWhere('complaints.customer_email', normalizedEmail);
+      }
+      if (normalizedPhone) {
+        this.orWhereRaw('REPLACE(REPLACE(complaints.customer_phone, " ", ""), "-", "") = ?', [
+          normalizedPhone,
+        ]);
+      }
+    });
+  }
+
+  const rows = await query;
+  const messagesByComplaint = await loadMessagesForComplaints(rows.map((row) => row.id));
+
+  return rows.map((row) =>
+    formatComplaintForCustomerTracking(row, messagesByComplaint[row.id] || []),
+  );
+}
+
 async function getComplaintById(id) {
   const row = await withOutletJoin(db('complaints')).where('complaints.id', id).first();
   if (!row) return null;
@@ -238,7 +385,22 @@ async function createComplaint(data, { files = [], chatMessages = [] } = {}) {
 
 async function updateComplaintStatus(id, status) {
   const normalized = status === 'in_review' ? 'in_progress' : status;
+  const existing = await db('complaints').where({ id }).first();
+  if (!existing) return null;
+
+  const previousStatus = existing.status === 'in_review' ? 'in_progress' : existing.status;
+
   await db('complaints').where({ id }).update({ status: normalized });
+
+  if (previousStatus !== normalized) {
+    const label = STATUS_LABELS[normalized] || normalized;
+    await db('messages').insert({
+      complaint_id: id,
+      sender: 'admin',
+      message_text: `Status updated to ${label}`,
+    });
+  }
+
   return getComplaintById(id);
 }
 
@@ -263,11 +425,16 @@ async function ensureComplaintAiSummary(complaint) {
     return complaint;
   }
 
-  const sourceText = [complaint.description, complaint.chat_transcript]
-    .filter(Boolean)
-    .join('\n');
+  const input = {
+    description: complaint.description,
+    chatTranscript: complaint.chat_transcript,
+    chatMessages: complaint.messages,
+    orderId: complaint.order_id,
+    customerName: complaint.customer_name,
+    category: complaint.complaint_category,
+  };
 
-  if (countWords(sourceText) < 10 && !(complaint.messages?.length)) {
+  if (!hasAnalyzableContent(input)) {
     return {
       ...complaint,
       ai_summary: complaint.ai_summary || SUMMARY_UNAVAILABLE,
@@ -275,14 +442,7 @@ async function ensureComplaintAiSummary(complaint) {
     };
   }
 
-  const generated = await generateTicketAiSummary({
-    description: complaint.description,
-    chatTranscript: complaint.chat_transcript,
-    chatMessages: complaint.messages,
-    orderId: complaint.order_id,
-    customerName: complaint.customer_name,
-    category: complaint.complaint_category,
-  });
+  const generated = await generateTicketAiSummary(input);
 
   await db('complaints')
     .where({ id: complaint.id })
@@ -297,10 +457,14 @@ async function ensureComplaintAiSummary(complaint) {
 
 module.exports = {
   listComplaints,
+  listComplaintsForExport,
+  listComplaintsForCustomer,
   getComplaintById,
   createComplaint,
   updateComplaintStatus,
   addAdminMessage,
   ensureComplaintAiSummary,
   formatComplaint,
+  formatComplaintForCustomerTracking,
+  formatTicketReference,
 };

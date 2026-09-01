@@ -130,4 +130,12 @@ export class CustomerSupportApi {
 
     return this.request('/api/complaints', { method: 'POST', body: formData });
   }
+
+  async trackMyComplaints({ email, phone } = {}) {
+    const params = new URLSearchParams();
+    if (email) params.set('email', email);
+    if (phone) params.set('phone', phone);
+    const query = params.toString();
+    return this.request(`/api/complaints/track${query ? `?${query}` : ''}`);
+  }
 }

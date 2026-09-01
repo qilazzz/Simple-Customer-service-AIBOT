@@ -37,6 +37,36 @@ router.get('/complaints', requireAdmin, async (req, res) => {
   }
 });
 
+router.get('/complaints/export-excel', requireAdmin, async (req, res) => {
+  const { startDate, endDate } = req.query;
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (startDate && !datePattern.test(String(startDate))) {
+    return res.status(400).json({ success: false, message: 'startDate must be YYYY-MM-DD.' });
+  }
+
+  if (endDate && !datePattern.test(String(endDate))) {
+    return res.status(400).json({ success: false, message: 'endDate must be YYYY-MM-DD.' });
+  }
+
+  try {
+    const { buildComplaintsExcelBuffer, buildExportFilename } = require('../../complaints/complaintExcelExport');
+    const complaints = await complaintService.listComplaintsForExport({ startDate, endDate });
+    const buffer = await buildComplaintsExcelBuffer(complaints);
+    const filename = buildExportFilename(startDate, endDate);
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(buffer);
+  } catch (err) {
+    console.error('Complaints Excel export error:', err.message);
+    return res.status(500).json({ success: false, message: 'Could not export complaints.' });
+  }
+});
+
 router.get('/complaints/:id', requireAdmin, async (req, res) => {
   try {
     let complaint = await complaintService.getComplaintById(req.params.id);
@@ -98,6 +128,31 @@ router.post('/complaints/:id/messages', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Admin message error:', err.message);
     return res.status(500).json({ success: false, message: 'Could not send message.' });
+  }
+});
+
+router.post('/complaints/:id/draft-reply', requireAdmin, async (req, res) => {
+  try {
+    let complaint = await complaintService.getComplaintById(req.params.id);
+    if (!complaint) {
+      return res.status(404).json({ success: false, message: 'Complaint not found.' });
+    }
+
+    complaint = await complaintService.ensureComplaintAiSummary(complaint);
+
+    const { generateTicketEmailReply } = require('../../complaints/ticketAiReply');
+    const draft = await generateTicketEmailReply(complaint);
+
+    return res.json({
+      success: true,
+      draft: {
+        message_text: draft.message_text,
+        source: draft.source,
+      },
+    });
+  } catch (err) {
+    console.error('Admin draft reply error:', err.message);
+    return res.status(500).json({ success: false, message: 'Could not generate AI reply draft.' });
   }
 });
 

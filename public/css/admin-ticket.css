@@ -150,6 +150,41 @@
   word-break: break-word;
 }
 
+.customer-field-phone {
+  gap: 0.45rem;
+}
+
+.whatsapp-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  margin-top: 0.15rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #25d366, #128c7e);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.28);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.whatsapp-chat-btn:hover {
+  filter: brightness(1.05);
+  color: #fff;
+}
+
+.whatsapp-chat-btn:active {
+  transform: translateY(1px);
+}
+
+.whatsapp-chat-btn-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
 /* AI Summary callout */
 .ai-callout {
   background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 55%, #faf5ff 100%);
@@ -362,6 +397,17 @@
   background: #fff;
   border: 1px solid rgba(198, 40, 40, 0.25);
   box-shadow: none;
+}
+
+.ticket-action-btn-ai {
+  color: #4338ca;
+  background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+  border: 1px solid rgba(67, 56, 202, 0.25);
+  box-shadow: none;
+}
+
+.ticket-action-btn-ai:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
 }
 
 .ticket-action-btn-secondary:hover {

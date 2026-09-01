@@ -30,6 +30,7 @@
     "@google/generative-ai": "^0.24.0",
     "cors": "^2.8.6",
     "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "knex": "^3.3.0",
     "multer": "^2.2.0",

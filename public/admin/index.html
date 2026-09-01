@@ -176,6 +176,25 @@
             <button id="apply-filters" type="button" class="btn btn-clay-brand">Filter</button>
           </div>
 
+          <div class="complaints-export-bar clay-inset">
+            <label class="export-date-field" for="export-start-date">
+              <span class="export-date-label">From:</span>
+              <input id="export-start-date" type="date" aria-label="Export from date" />
+            </label>
+            <label class="export-date-field" for="export-end-date">
+              <span class="export-date-label">To:</span>
+              <input id="export-end-date" type="date" aria-label="Export to date" />
+            </label>
+            <button
+              id="export-excel-btn"
+              type="button"
+              class="btn btn-export-excel"
+              onclick="exportToExcelWithDateRange()"
+            >
+              Export Excel
+            </button>
+          </div>
+
           <div class="table-wrap clay-inset">
             <table>
               <thead>

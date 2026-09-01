@@ -2,9 +2,17 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const SUMMARY_UNAVAILABLE = 'Summary unavailable';
-const MIN_WORD_COUNT = 10;
+/** Short Manglish/BM complaints may use fewer words — still send to Gemini. */
+const MIN_WORD_COUNT = 2;
+const MIN_CHAR_COUNT = 8;
 
 const VALID_SENTIMENTS = ['positive', 'neutral', 'frustrated', 'urgent'];
+
+const MALAY_MARKERS =
+  /\b(saya|kami|tak|takde|tidak|dengan|yang|pun|lah|la|je|nak|nk|tibe|sama|sampai|dapat|tiada|kenapa|macam|betul|salah|pesanan|makan|minum|dan|atau|ini|itu|sudah|dah|belum|sangat|terima|kasih|maaf|tak\s+sama|tibe\s+ii)\b/gi;
+
+const ENGLISH_MARKERS =
+  /\b(the|and|was|were|my|your|please|thank|sorry|wrong|order|received|instead|instead of)\b/gi;
 
 const SENTIMENT_ALIASES = {
   angry: 'frustrated',
@@ -21,6 +29,74 @@ const SENTIMENT_ALIASES = {
 function countWords(text) {
   if (!text?.trim()) return 0;
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * Extract raw customer-authored text for language detection and fallbacks.
+ * @param {Object} input
+ */
+function getCustomerSourceText(input = {}) {
+  const { description, chatTranscript, chatMessages } = input;
+
+  if (description?.trim()) return description.trim();
+
+  const customerLines = (chatMessages || [])
+    .filter((message) => {
+      const sender = String(message.sender || message.role || '').toLowerCase();
+      return sender === 'customer' || sender === 'user';
+    })
+    .map((message) => message.message_text || message.text || '')
+    .join(' ')
+    .trim();
+
+  if (customerLines) return customerLines;
+  if (chatTranscript?.trim()) return chatTranscript.trim();
+  return '';
+}
+
+/**
+ * @returns {'ms'|'en'|'mixed'}
+ */
+function detectCustomerLanguage(texts = []) {
+  const text = texts.filter(Boolean).join(' ').toLowerCase();
+  if (!text.trim()) return 'en';
+
+  const malayHits = (text.match(MALAY_MARKERS) || []).length;
+  const englishHits = (text.match(ENGLISH_MARKERS) || []).length;
+  const words = countWords(text);
+  const malayRatio = words > 0 ? malayHits / words : 0;
+
+  if (malayHits >= 2 || malayRatio >= 0.12) {
+    if (englishHits >= 2 && malayHits >= 2) return 'mixed';
+    return 'ms';
+  }
+
+  return 'en';
+}
+
+function hasAnalyzableContent(input = {}) {
+  const customerText = getCustomerSourceText(input);
+  const analysisText = buildAnalysisInput(input).analysisText;
+  const text = customerText || analysisText;
+  const words = countWords(text);
+  const chars = text.replace(/\s/g, '').length;
+  return words >= MIN_WORD_COUNT || chars >= MIN_CHAR_COUNT;
+}
+
+function buildFallbackSummary(input = {}) {
+  const source = getCustomerSourceText(input);
+  if (!source) {
+    return {
+      ai_summary: SUMMARY_UNAVAILABLE,
+      sentiment: 'neutral',
+    };
+  }
+
+  const truncated = source.length > 220 ? `${source.slice(0, 217)}...` : source;
+  return {
+    ai_summary: `Customer reported: ${truncated}`,
+    sentiment: 'neutral',
+  };
 }
 
 function normalizeSentiment(value) {
@@ -68,8 +144,28 @@ function parseJsonResponse(text) {
   return JSON.parse(match[0]);
 }
 
-function buildSummaryPrompt(analysisText) {
+function buildSummaryPrompt(analysisText, customerLanguage = 'en') {
+  const languageHint =
+    customerLanguage === 'ms'
+      ? 'The customer wrote primarily in Bahasa Melayu / informal Malaysian Malay.'
+      : customerLanguage === 'mixed'
+        ? 'The customer wrote in Manglish (mixed Bahasa Melayu and English), possibly with slang or short-form (e.g. "tak sama", "tibe ii").'
+        : 'The customer may have written in any language.';
+
   return `You are an internal support analyst for US Pizza Malaysia.
+
+${languageHint}
+
+Multilingual rules (IMPORTANT):
+- Process complaint text in ANY language: Bahasa Melayu, English, Manglish, or informal Malaysian slang/short-form.
+- Decode informal spelling and abbreviations (e.g. "tak sama" = not the same/wrong, "tibe ii" = suddenly/instead, "dpt" = received).
+- Always write "ai_summary" in clear, professional English for admin staff — translate and normalize the issue even if the input is very informal or mixed language.
+- Do NOT refuse, skip, or return empty output because the input is not in English.
+- Infer the core issue (wrong item, late delivery, quality, etc.) from context when wording is casual or incomplete.
+
+Example:
+Input: "order tak sama dengan apa saya dapat .. saya order aloha tibe ii sampai fish n chip."
+Output ai_summary: "Customer received the wrong item (Fish & Chips instead of Aloha Pizza)."
 
 Analyze the customer complaint below and respond ONLY with valid JSON (no markdown):
 {
@@ -98,23 +194,28 @@ ${analysisText}`;
  * @param {string} [input.category]
  */
 async function generateTicketAiSummary(input = {}) {
-  const { analysisText } = buildAnalysisInput(input);
+  const { analysisText, transcript } = buildAnalysisInput(input);
+  const customerLanguage = detectCustomerLanguage([
+    getCustomerSourceText(input),
+    input.description,
+    input.chatTranscript,
+  ]);
 
-  if (countWords(analysisText) < MIN_WORD_COUNT) {
+  if (!hasAnalyzableContent(input)) {
     return {
       ai_summary: SUMMARY_UNAVAILABLE,
       sentiment: 'neutral',
-      chat_transcript: buildAnalysisInput(input).transcript || null,
+      chat_transcript: transcript || null,
     };
   }
 
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
-    console.warn('GEMINI_API_KEY is not configured — AI summary skipped.');
+    console.warn('GEMINI_API_KEY is not configured — using fallback summary.');
+    const fallback = buildFallbackSummary(input);
     return {
-      ai_summary: SUMMARY_UNAVAILABLE,
-      sentiment: 'neutral',
-      chat_transcript: buildAnalysisInput(input).transcript || null,
+      ...fallback,
+      chat_transcript: transcript || null,
     };
   }
 
@@ -129,21 +230,29 @@ async function generateTicketAiSummary(input = {}) {
       },
     });
 
-    const result = await model.generateContent(buildSummaryPrompt(analysisText));
+    const result = await model.generateContent(buildSummaryPrompt(analysisText, customerLanguage));
     const parsed = parseJsonResponse(result.response.text());
     const aiSummary = String(parsed.ai_summary || '').trim();
 
+    if (!aiSummary) {
+      const fallback = buildFallbackSummary(input);
+      return {
+        ...fallback,
+        chat_transcript: transcript || null,
+      };
+    }
+
     return {
-      ai_summary: aiSummary || SUMMARY_UNAVAILABLE,
+      ai_summary: aiSummary,
       sentiment: normalizeSentiment(parsed.sentiment),
-      chat_transcript: buildAnalysisInput(input).transcript || null,
+      chat_transcript: transcript || null,
     };
   } catch (err) {
     console.warn('Ticket AI summary failed:', err.message);
+    const fallback = buildFallbackSummary(input);
     return {
-      ai_summary: SUMMARY_UNAVAILABLE,
-      sentiment: 'neutral',
-      chat_transcript: buildAnalysisInput(input).transcript || null,
+      ...fallback,
+      chat_transcript: transcript || null,
     };
   }
 }
@@ -152,8 +261,13 @@ module.exports = {
   SUMMARY_UNAVAILABLE,
   VALID_SENTIMENTS,
   MIN_WORD_COUNT,
+  MIN_CHAR_COUNT,
   countWords,
   normalizeSentiment,
   buildChatTranscript,
+  getCustomerSourceText,
+  detectCustomerLanguage,
+  hasAnalyzableContent,
+  buildFallbackSummary,
   generateTicketAiSummary,
 };

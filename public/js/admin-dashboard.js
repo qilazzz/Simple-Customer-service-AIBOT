@@ -736,6 +736,31 @@ async function fetchComplaints() {
 
 complaintsRefreshBtn?.addEventListener('click', fetchComplaints);
 
+function exportToExcelWithDateRange() {
+  const startDate = document.getElementById('export-start-date')?.value || '';
+  const endDate = document.getElementById('export-end-date')?.value || '';
+  const token = localStorage.getItem('admin_token');
+
+  if (!token) {
+    window.location.href = '/admin/login.html';
+    return;
+  }
+
+  if (startDate && endDate && startDate > endDate) {
+    window.alert('The "From" date cannot be after the "To" date.');
+    return;
+  }
+
+  const params = new URLSearchParams();
+  if (startDate) params.set('startDate', startDate);
+  if (endDate) params.set('endDate', endDate);
+  params.set('token', token);
+
+  window.location.href = `/api/admin/complaints/export-excel?${params.toString()}`;
+}
+
+window.exportToExcelWithDateRange = exportToExcelWithDateRange;
+
 loadCategoryOptions();
 initSidebarState();
 updateMainContentHeading(activeTab);
